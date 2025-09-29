@@ -8,7 +8,7 @@ public class LoginController {
      // Ánh xạ GET cho đường dẫn gốc "/test"
     @GetMapping("/login")
     public String test() {
-        return "Login Controller aaaa!";
+        return "Login Controller is working!";
     }
 
 }
