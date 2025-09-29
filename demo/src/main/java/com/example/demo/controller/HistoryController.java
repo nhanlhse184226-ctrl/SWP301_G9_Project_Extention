@@ -4,10 +4,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class TestController2 {
+public class HistoryController {
+   
     // Ánh xạ GET cho đường dẫn gốc "/test"
-    @GetMapping("/test2")
-    public String test2() {
-        return "Test Controller 2 is working! and git push is working 3";
+    @GetMapping("/history")
+    public String test() {
+        return "History Controller is working!";
     }
+
 }
