@@ -28,11 +28,11 @@ public class SwaggerConfig {
                                 .email("swp301g9@example.com")))
                 .servers(List.of(
                         new Server()
-                                .url("https://swp301-g9-project.onrender.com")
-                                .description("Production Server (Render)"),
-                        new Server()
                                 .url("http://localhost:" + serverPort)
-                                .description("Local Development Server")
+                                .description("Local Development Server"),
+                        new Server()
+                                .url("https://swp301-g9-project.onrender.com")
+                                .description("Production Server (Render)")
                 ));
     }
 }
