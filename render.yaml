@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: swp301-api
+    env: java
+    plan: free
+    buildCommand: cd demo && mvn clean package -DskipTests
+    startCommand: cd demo && java -jar target/demo-0.0.1-SNAPSHOT.jar
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: DB_USERNAME
+        value: sa
+      - key: DB_PASSWORD
+        value: 12345
+      - key: DB_NAME
+        value: UserManagement
