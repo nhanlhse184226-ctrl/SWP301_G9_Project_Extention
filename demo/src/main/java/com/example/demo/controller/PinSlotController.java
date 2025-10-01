@@ -7,7 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.dao.PinSlotDAO;
@@ -56,6 +58,23 @@ public class PinSlotController {
         }
     }
     
+    // Scheduled task để reset expired reservations - chạy mỗi 5 giây để kiểm tra và reset những slot đã reserve quá 1 phút
+    @Scheduled(fixedDelay = 5000) 
+    public void resetExpiredReservationsScheduled() {
+        try {
+            boolean check = pinSlotDAO.resetExpiredReservations();
+            
+            if (check) {
+                System.out.println("Scheduled reset: Expired reservations reset successfully at " + new java.util.Date());
+            } else {
+                System.out.println("Scheduled reset: Reset expired reservations failed at " + new java.util.Date());
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Scheduled reset error: " + e.toString());
+        }
+    }
+    
     // API để lấy danh sách PinSlot
     @GetMapping("/pinSlot/list")
     public ResponseEntity<ApiResponse<Object>> getListPinSlot() {
@@ -78,5 +97,26 @@ public class PinSlotController {
     @GetMapping("/pinSlot/status")
     public ResponseEntity<ApiResponse<Object>> getPinSlotStatus() {
         return ResponseEntity.ok(ApiResponse.success("PinSlot service is running", "Scheduled updates every 1 minute"));
+    }
+    
+    // API để reserve slot
+    @PostMapping("/pinSlot/reserve")
+    public ResponseEntity<ApiResponse<Object>> reserveSlot(@RequestParam int pinID) {
+        try {
+            boolean success = pinSlotDAO.reserveSlot(pinID);
+            
+            if (success) {
+                return ResponseEntity.ok(ApiResponse.success("Slot reserved successfully", "Pin slot " + pinID + " has been reserved"));
+            } else {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Failed to reserve slot. Slot may already be reserved or not available"));
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Database error in reserveSlot: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("Database error occurred"));
+        } catch (Exception e) {
+            System.out.println("Unexpected error in reserveSlot: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
     }
 }

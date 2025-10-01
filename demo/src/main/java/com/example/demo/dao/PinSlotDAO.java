@@ -1,5 +1,6 @@
 package com.example.demo.dao;
 
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -81,5 +82,84 @@ public class PinSlotDAO {
             }
         }
         return listPinSlot;
+    }
+    
+    // Method để reserve slot
+    public boolean reserveSlot(int pinID) throws SQLException {
+        boolean success = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        
+        String sql = "UPDATE dbo.pin SET reserveStatus = 'not ready', reserveTime = GETDATE() WHERE pinID = ? AND reserveStatus = 'ready'";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, pinID);
+                
+                int rowsAffected = ptm.executeUpdate();
+                success = (rowsAffected > 0);
+                
+                System.out.println("Reserve slot " + pinID + " - Rows affected: " + rowsAffected);
+            }
+        } catch (ClassNotFoundException e) {
+            System.out.println("Database driver not found: " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("Database error in reserveSlot: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.out.println("Unexpected error in reserveSlot: " + e.getMessage());
+            throw new SQLException("Failed to reserve slot: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        
+        return success;
+    }
+    
+    // Method để reset tất cả reservations đã quá 60 phút
+    public boolean resetExpiredReservations() throws SQLException {
+        boolean success = false;
+        Connection conn = null;
+        CallableStatement cs = null;
+        
+        String sql = "{call ResetExpiredReservations_Test}";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                cs = conn.prepareCall(sql);
+                
+                cs.execute();
+                success = true;
+                
+                System.out.println("Reset expired reservations (Test 1min) procedure executed successfully");
+            }
+        } catch (ClassNotFoundException e) {
+            System.out.println("Database driver not found: " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("Database error in resetExpiredReservations: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.out.println("Unexpected error in resetExpiredReservations: " + e.getMessage());
+            throw new SQLException("Failed to reset expired reservations: " + e.getMessage());
+        } finally {
+            if (cs != null) {
+                cs.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        
+        return success;
     }
 }
