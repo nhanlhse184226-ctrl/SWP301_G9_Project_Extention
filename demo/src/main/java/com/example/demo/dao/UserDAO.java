@@ -9,9 +9,9 @@ import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.UserDTO;
 
 public class UserDAO {
-    private static final String LOGIN = "SELECT fullName, roleID FROM tblUsers WHERE userID=? AND password=?";
+    private static final String LOGIN = "SELECT Name, driverID FROM driver WHERE Email=? AND Password=?";
 
-    public UserDTO checkLogin(String userID, String password) throws SQLException {
+    public UserDTO checkLogin(String Email, String Password) throws SQLException {
         UserDTO user = null;
         Connection conn = null;
         PreparedStatement ptm = null;
@@ -20,13 +20,13 @@ public class UserDAO {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(LOGIN);
-                ptm.setString(1, userID);
-                ptm.setString(2, password);
+                ptm.setString(1, Email);
+                ptm.setString(2, Password);
                 rs = ptm.executeQuery();
                 if (rs.next()) {
-                    String fullName = rs.getString("fullName");
-                    String roleID = rs.getString("roleID");
-                    user = new UserDTO(userID, fullName, roleID, "***");
+                    String Name = rs.getString("Name");
+                    int driverID = rs.getInt("driverID");
+                    user = new UserDTO(driverID, Name, Email, "***");
                 }
             }
         } catch (Exception e) {

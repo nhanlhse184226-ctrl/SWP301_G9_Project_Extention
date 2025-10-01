@@ -16,12 +16,12 @@ import com.example.demo.dto.ApiResponse;
 @CrossOrigin(origins = "*")
 public class LoginController {
 
-    protected ResponseEntity<ApiResponse<Object>> processRequest(String userID, String password) {
+    protected ResponseEntity<ApiResponse<Object>> processRequest(String Email, String Password) {
         UserDTO loginUser = null;
 
         try {
             UserDAO dao = new UserDAO();
-            loginUser = dao.checkLogin(userID, password);
+            loginUser = dao.checkLogin(Email, Password);
 
             // Kiểm tra login thành công chưa
             if (loginUser != null) {
@@ -29,7 +29,7 @@ public class LoginController {
                 return ResponseEntity.ok(ApiResponse.success("Login successful", loginUser));
             } else {
                 // Login thất bại - sai user/password
-                return ResponseEntity.badRequest().body(ApiResponse.error("Incorrect UserId or password"));
+                return ResponseEntity.badRequest().body(ApiResponse.error("Incorrect Email or Password"));
             }
 
         } catch (Exception e) {
@@ -41,9 +41,9 @@ public class LoginController {
 
     @PostMapping("/login")
     protected ResponseEntity<ApiResponse<Object>> doPost(
-            @RequestParam String userID,
-            @RequestParam String password) {
-        return processRequest(userID, password);
+            @RequestParam String Email,
+            @RequestParam String Password) {
+        return processRequest(Email, Password);
     }
 
     public String getServletInfo() {

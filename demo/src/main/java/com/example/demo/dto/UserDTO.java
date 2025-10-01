@@ -1,54 +1,54 @@
 package com.example.demo.dto;
 
 public class UserDTO {
-    private String userID;
-    private String fullName;
-    private String roleID;
-    private String password;
+    private int driverID;
+    private String Name;
+    private String Email;
+    private String Password;
 
     public UserDTO() {
-        this.userID = "";
-        this.fullName = "";
-        this.roleID = "";
-        this.password = "";
+        this.driverID = 0;
+        this.Name = "";
+        this.Email = "";
+        this.Password = "";
     }
 
-    public UserDTO(String userID, String fullName, String roleID, String password) {
-        this.userID = userID;
-        this.fullName = fullName;
-        this.roleID = roleID;
-        this.password = password;
+    public UserDTO(int driverID, String Name, String Email, String Password) {
+        this.driverID = driverID;
+        this.Name = Name;
+        this.Email = Email;
+        this.Password = Password;
     }
 
-    public String getUserID() {
-        return userID;
+    public int getDriverID() {
+        return driverID;
     }
 
-    public void setUserID(String userID) {
-        this.userID = userID;
+    public void setDriverID(int driverID) {
+        this.driverID = driverID;
     }
 
-    public String getFullName() {
-        return fullName;
+    public String getName() {
+        return Name;
     }
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
+    public void setName(String Name) {
+        this.Name = Name;
     }
 
-    public String getRoleID() {
-        return roleID;
+    public String getEmail() {
+        return Email;
     }
 
-    public void setRoleID(String roleID) {
-        this.roleID = roleID;
+    public void setEmail(String Email) {
+        this.Email = Email;
     }
 
     public String getPassword() {
-        return password;
+        return Password;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public void setPassword(String Password) {
+        this.Password = Password;
     }
 }

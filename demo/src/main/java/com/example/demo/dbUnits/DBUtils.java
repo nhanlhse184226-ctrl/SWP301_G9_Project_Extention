@@ -16,7 +16,7 @@ import java.sql.SQLException;
  */
 public class DBUtils {
     // Cấu hình SQL Server (giống như code cũ)
-    private static final String DB_NAME = "UserManagement";      // Tên database SQL Server
+    private static final String DB_NAME = "TestSchedule";      // Tên database SQL Server
     private static final String USER_NAME = "sa";               // Username SQL Server
     private static final String PASSWORD = "12345";             // Password SQL Server
     
