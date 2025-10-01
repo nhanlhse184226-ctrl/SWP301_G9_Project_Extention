@@ -1,13 +1,18 @@
 package com.example.demo.controller;
 
-import org.springframework.web.bind.annotation.*;
+import java.sql.SQLException;
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.demo.dao.PinSlotDAO;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.PinSlotDTO;
-import java.sql.SQLException;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -35,7 +40,7 @@ public class PinSlotController {
     }
     
     // Scheduled task - chạy mỗi phút (60000ms = 1 phút)
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 60000)
     public void updatePinSlotScheduled() {
         try {
             boolean check = pinSlotDAO.updatePinPercent();

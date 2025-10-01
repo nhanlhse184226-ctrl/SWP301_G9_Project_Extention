@@ -1,3 +1,19 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.compile.nullAnalysis.mode": "disabled",
+    "java.eclipse.downloadSources": false,
+    "java.warnings": {
+        "unusedVariable": "ignore",
+        "unusedParameter": "ignore",
+        "unusedImport": "ignore",
+        "unusedPrivate": "ignore"
+    },
+    "java.codeGeneration.insertionLocation": "lastMember",
+    "java.maxConcurrentBuilds": 1,
+    "sonarlint.rules": {
+        "java:S106": "off",
+        "java:S1854": "off",
+        "java:S1481": "off",
+        "java:S1172": "off"
+    }
 }
