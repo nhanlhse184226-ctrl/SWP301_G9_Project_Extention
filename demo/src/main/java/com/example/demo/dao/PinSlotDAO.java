@@ -5,6 +5,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,8 +65,15 @@ public class PinSlotDAO {
                 while (rs.next()) {
                     int pinID = rs.getInt("pinID");
                     int pinPercent = rs.getInt("pinPercent");
-                    String pinStatus = rs.getString("pinStatus");  // ← Sửa column name
-                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinStatus));
+                    String pinStatus = rs.getString("pinStatus");
+                    
+                    // Đọc thêm reservation fields
+                    String reserveStatus = rs.getString("reserveStatus");
+                    Timestamp reserveTimeStamp = rs.getTimestamp("reserveTime");
+                    LocalDateTime reserveTime = (reserveTimeStamp != null) ? reserveTimeStamp.toLocalDateTime() : null;
+                    
+                    // Sử dụng constructor với đầy đủ 5 fields
+                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinStatus, reserveStatus, reserveTime));
                 }
             }
         } catch (Exception e) {
@@ -154,6 +163,52 @@ public class PinSlotDAO {
         } finally {
             if (cs != null) {
                 cs.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        
+        return success;
+    }
+    
+    // Method để update PinSlot theo pinID - cho Update Pin Slot API
+    public boolean updatePinSlot(int pinID, int pinPercent) throws SQLException {
+        boolean success = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        
+        // Logic: Update pin và set status theo giá trị pin
+        // Pin < 100% → status = "unvaliable"
+        // Pin = 100% → status = "valiable"
+        String sql = "UPDATE dbo.pin SET pinPercent = ?, pinStatus = ? WHERE pinID = ?";
+        String newStatus = (pinPercent < 100) ? "unvaliable" : "valiable";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, pinPercent);
+                ptm.setString(2, newStatus);
+                ptm.setInt(3, pinID);
+                
+                int rowsAffected = ptm.executeUpdate();
+                success = (rowsAffected > 0);
+                
+                System.out.println("Update PinSlot - PinID: " + pinID + ", NewPercent: " + pinPercent + "%, Status: " + newStatus + ", Rows affected: " + rowsAffected);
+            }
+        } catch (ClassNotFoundException e) {
+            System.out.println("Database driver not found: " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("Database error in updatePinSlot: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.out.println("Unexpected error in updatePinSlot: " + e.getMessage());
+            throw new SQLException("Failed to update pin slot: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
             }
             if (conn != null) {
                 conn.close();

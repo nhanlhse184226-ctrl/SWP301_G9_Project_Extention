@@ -1,4 +1,4 @@
-package com.example.demo.controller.Pin_Station_Controller;
+package com.example.demo.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

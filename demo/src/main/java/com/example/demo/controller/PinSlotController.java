@@ -1,4 +1,4 @@
-package com.example.demo.controller.Pin_Slot_Controller;
+package com.example.demo.controller;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -117,6 +118,42 @@ public class PinSlotController {
         } catch (Exception e) {
             System.out.println("Unexpected error in reserveSlot: " + e.getMessage());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
+    }
+    
+    // API để update PinSlot theo pinID (Method 1: Request Parameters)
+    @PutMapping("/pinSlot/updateSlot")
+    public ResponseEntity<ApiResponse<Object>> updatePinSlot(
+            @RequestParam int pinID, 
+            @RequestParam int pinPercent) {
+        
+        try {
+            // Validate pinPercent (0-100)
+            if (pinPercent < 0 || pinPercent > 100) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Pin percent must be between 0 and 100"));
+            }
+            
+            // Gọi DAO để update
+            boolean success = pinSlotDAO.updatePinSlot(pinID, pinPercent);
+            
+            if (success) {
+                String statusMessage = (pinPercent < 100) ? 
+                    " (Status: unvaliable)" : 
+                    " (Status: valiable)";
+                    
+                return ResponseEntity.ok(
+                    ApiResponse.success("Pin slot updated successfully", 
+                        "PinID: " + pinID + " updated to " + pinPercent + "%" + statusMessage));
+            } else {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to update pin slot. PinID may not exist."));
+            }
+            
+        } catch (Exception e) {
+            System.out.println("Error updating pin slot: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(ApiResponse.error("Error updating pin slot: " + e.getMessage()));
         }
     }
 }
