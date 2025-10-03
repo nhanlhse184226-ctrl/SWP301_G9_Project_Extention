@@ -1,31 +1,37 @@
 package com.example.demo.dto;
 
 public class UserDTO {
-    private int driverID;
+    private int userID;
     private String Name;
     private String Email;
     private String Password;
+    private int phone;
+    private int roleID;
 
     public UserDTO() {
-        this.driverID = 0;
+        this.userID = 0;
         this.Name = "";
         this.Email = "";
         this.Password = "";
+        this.phone = 0;
+        this.roleID = 0;
     }
 
-    public UserDTO(int driverID, String Name, String Email, String Password) {
-        this.driverID = driverID;
+    public UserDTO(int userID, String Name, String Email, String Password, int phone, int roleID) {
+        this.userID = userID;
         this.Name = Name;
         this.Email = Email;
         this.Password = Password;
+        this.phone = phone;
+        this.roleID = roleID;
     }
 
-    public int getDriverID() {
-        return driverID;
+    public int getUserID() {
+        return userID;
     }
 
-    public void setDriverID(int driverID) {
-        this.driverID = driverID;
+    public void setUserID(int userID) {
+        this.userID = userID;
     }
 
     public String getName() {
@@ -50,5 +56,21 @@ public class UserDTO {
 
     public void setPassword(String Password) {
         this.Password = Password;
+    }
+
+    public int getPhone() {
+        return phone;
+    }
+
+    public void setPhone(int phone) {
+        this.phone = phone;
+    }
+
+    public int getRoleID() {
+        return roleID;
+    }
+
+    public void setRoleID(int roleID) {
+        this.roleID = roleID;
     }
 }
