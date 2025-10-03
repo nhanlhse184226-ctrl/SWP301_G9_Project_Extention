@@ -1,4 +1,4 @@
-package com.example.demo.controller;
+package com.example.demo.controller.Pin_Slot_Controller;
 
 import java.sql.SQLException;
 import java.util.List;

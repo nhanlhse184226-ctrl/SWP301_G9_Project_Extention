@@ -1,13 +1,13 @@
-package com.example.demo.controller;
+package com.example.demo.controller.Service;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class RatingController {
+public class ReportController {
     // Ánh xạ GET cho đường dẫn gốc "/test"
-    @GetMapping("/rating")
+    @GetMapping("/report")
     public String test() {
-        return "Rating Controller is working!";
+        return "Report Controller is working!";
     }
 }

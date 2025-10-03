@@ -1,13 +1,13 @@
-package com.example.demo.controller;
+package com.example.demo.controller.Service;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class ServicePackController {
+public class RatingController {
     // Ánh xạ GET cho đường dẫn gốc "/test"
-    @GetMapping("/servicePack")
+    @GetMapping("/rating")
     public String test() {
-        return "Service Pack Controller is working!";
+        return "Rating Controller is working!";
     }
 }

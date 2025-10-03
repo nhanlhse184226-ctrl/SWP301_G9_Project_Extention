@@ -1,5 +1,5 @@
 
-package com.example.demo.controller;
+package com.example.demo.controller.Service;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
