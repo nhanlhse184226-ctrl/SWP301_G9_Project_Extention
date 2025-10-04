@@ -76,20 +76,43 @@ public class PinSlotController {
         }
     }
     
-    // API để lấy danh sách PinSlot
+    // API để lấy danh sách PinSlot theo stationID
     @GetMapping("/pinSlot/list")
-    public ResponseEntity<ApiResponse<Object>> getListPinSlot() {
+    public ResponseEntity<ApiResponse<Object>> getListPinSlot(@RequestParam int stationID) {
+        try {
+            // Validation
+            if (stationID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Station ID must be greater than 0"));
+            }
+            
+            List<PinSlotDTO> listPinSlot = pinSlotDAO.getListPinSlotByStation(stationID);
+            
+            if (listPinSlot != null && !listPinSlot.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success("Get PinSlot list for station " + stationID + " successfully", listPinSlot));
+            } else {
+                return ResponseEntity.ok(ApiResponse.success("No PinSlots found for station " + stationID, listPinSlot));
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Error at PinSlotController getListPinSlot: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
+    }
+    
+    // API để lấy tất cả PinSlot (không filter theo station)
+    @GetMapping("/pinSlot/listAll")
+    public ResponseEntity<ApiResponse<Object>> getAllPinSlots() {
         try {
             List<PinSlotDTO> listPinSlot = pinSlotDAO.getListPinSlot();
             
             if (listPinSlot != null && !listPinSlot.isEmpty()) {
-                return ResponseEntity.ok(ApiResponse.success("Get PinSlot list successfully", listPinSlot));
+                return ResponseEntity.ok(ApiResponse.success("Get all PinSlots successfully", listPinSlot));
             } else {
                 return ResponseEntity.ok(ApiResponse.success("PinSlot list is empty", listPinSlot));
             }
             
         } catch (SQLException e) {
-            System.out.println("Error at PinSlotController getListPinSlot: " + e.toString());
+            System.out.println("Error at PinSlotController getAllPinSlots: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
         }
     }

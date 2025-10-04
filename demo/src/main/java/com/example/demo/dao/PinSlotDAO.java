@@ -96,6 +96,56 @@ public class PinSlotDAO {
         return listPinSlot;
     }
     
+    // Method để lấy danh sách PinSlot theo stationID
+    public List<PinSlotDTO> getListPinSlotByStation(int stationID) throws SQLException {
+        List<PinSlotDTO> listPinSlot = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        
+        String sql = "SELECT * FROM dbo.pin WHERE stationID = ?";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, stationID);
+                rs = ptm.executeQuery();
+                
+                while (rs.next()) {
+                    int pinID = rs.getInt("pinID");
+                    int pinPercent = rs.getInt("pinPercent");
+                    String pinStatus = rs.getString("pinStatus");
+                    
+                    // Đọc thêm reservation fields
+                    String reserveStatus = rs.getString("reserveStatus");
+                    Timestamp reserveTimeStamp = rs.getTimestamp("reserveTime");
+                    LocalDateTime reserveTime = (reserveTimeStamp != null) ? reserveTimeStamp.toLocalDateTime() : null;
+                    
+                    // Đọc stationID từ database
+                    Integer stationIDFromDB = rs.getObject("stationID", Integer.class);
+                    
+                    // Sử dụng constructor với đầy đủ 6 fields
+                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinStatus, reserveStatus, reserveTime, stationIDFromDB));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error getting pin slot list by station: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return listPinSlot;
+    }
+    
     // Method để reserve slot
     public boolean reserveSlot(int pinID) throws SQLException {
         boolean success = false;
