@@ -16,8 +16,87 @@ import com.example.demo.dto.PaymentDTO;
 
 public class PaymentDAO {
     
+    // Kiểm tra user có tồn tại không
+    public boolean isUserExists(int userID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        
+        String sql = "SELECT COUNT(1) FROM userDetails WHERE userID = ?";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, userID);
+                rs = ptm.executeQuery();
+                
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error checking user existence: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        return false;
+    }
+    
+    // Kiểm tra payment status hợp lệ
+    public boolean isValidPaymentStatus(String status) {
+        return status != null && 
+               (status.equals("pending") || status.equals("completed") || 
+                status.equals("failed") || status.equals("cancelled"));
+    }
+    
+    // Kiểm tra payment method hợp lệ
+    public boolean isValidPaymentMethod(String method) {
+        return method != null && 
+               (method.equals("credit_card") || method.equals("debit_card") || 
+                method.equals("bank_transfer") || method.equals("cash") || 
+                method.equals("e_wallet"));
+    }
+    
+    // Kiểm tra amount hợp lệ
+    public boolean isValidAmount(BigDecimal amount) {
+        return amount != null && amount.compareTo(BigDecimal.ZERO) > 0;
+    }
+    
     // Tạo payment mới
     public int createPayment(PaymentDTO payment) throws SQLException {
+        // Enhanced validation
+        if (payment == null) {
+            throw new SQLException("Payment data cannot be null");
+        }
+        if (payment.getUserID() <= 0) {
+            throw new SQLException("Invalid user ID");
+        }
+        if (!isUserExists(payment.getUserID())) {
+            throw new SQLException("User with ID " + payment.getUserID() + " does not exist");
+        }
+        if (!isValidAmount(payment.getAmount())) {
+            throw new SQLException("Payment amount must be greater than 0");
+        }
+        if (payment.getPaymentStatus() == null || payment.getPaymentStatus().trim().isEmpty()) {
+            throw new SQLException("Payment status cannot be null or empty");
+        }
+        if (!isValidPaymentStatus(payment.getPaymentStatus())) {
+            throw new SQLException("Invalid payment status. Valid values: pending, completed, failed, cancelled");
+        }
+        if (payment.getPaymentMethod() == null || payment.getPaymentMethod().trim().isEmpty()) {
+            throw new SQLException("Payment method cannot be null or empty");
+        }
+        if (!isValidPaymentMethod(payment.getPaymentMethod())) {
+            throw new SQLException("Invalid payment method. Valid values: credit_card, debit_card, bank_transfer, cash, e_wallet");
+        }
+        if (payment.getTransactionID() == null || payment.getTransactionID().trim().isEmpty()) {
+            throw new SQLException("Transaction ID cannot be null or empty");
+        }
+        
         int generatedID = 0;
         Connection conn = null;
         PreparedStatement ptm = null;
@@ -32,10 +111,10 @@ public class PaymentDAO {
                 ptm = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
                 ptm.setInt(1, payment.getUserID());
                 ptm.setBigDecimal(2, payment.getAmount());
-                ptm.setString(3, payment.getPaymentStatus());
-                ptm.setString(4, payment.getPaymentMethod());
-                ptm.setString(5, payment.getDescription());
-                ptm.setString(6, payment.getTransactionID());
+                ptm.setString(3, payment.getPaymentStatus().trim());
+                ptm.setString(4, payment.getPaymentMethod().trim());
+                ptm.setString(5, payment.getDescription() != null ? payment.getDescription().trim() : "");
+                ptm.setString(6, payment.getTransactionID().trim());
                 
                 int rowsAffected = ptm.executeUpdate();
                 

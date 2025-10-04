@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -123,6 +124,61 @@ public class PinStationController {
             System.out.println("Error getting pin station: " + e.getMessage());
             return ResponseEntity.internalServerError()
                 .body(ApiResponse.error("Error getting pin station: " + e.getMessage()));
+        }
+    }
+    
+    // API để update PinStation
+    @PutMapping("/pinStation/update")
+    public ResponseEntity<ApiResponse<Object>> updatePinStation(
+            @RequestParam int stationID,
+            @RequestParam String stationName,
+            @RequestParam String location,
+            @RequestParam String status) {
+        
+        try {
+            // Validate input
+            if (stationID <= 0) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Station ID must be greater than 0"));
+            }
+            if (stationName == null || stationName.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Station name is required"));
+            }
+            if (location == null || location.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Location is required"));
+            }
+            if (status == null || status.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Status is required"));
+            }
+            
+            // Gọi DAO để update station
+            boolean success = pinStationDAO.updatePinStation(
+                stationID,
+                stationName.trim(), 
+                location.trim(), 
+                status.trim()
+            );
+            
+            if (success) {
+                return ResponseEntity.ok(
+                    ApiResponse.success("Pin station updated successfully", 
+                        "Station ID " + stationID + " has been updated with new information"));
+            } else {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to update pin station"));
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Database error in updatePinStation: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Update failed: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("Error updating pin station: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(ApiResponse.error("Error updating pin station: " + e.getMessage()));
         }
     }
     

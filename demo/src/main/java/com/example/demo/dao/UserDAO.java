@@ -1,11 +1,11 @@
 package com.example.demo.dao;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.sql.Connection;
 
 import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.UserDTO;
@@ -251,7 +251,53 @@ public class UserDAO {
         return check;
     }
 
+    // Kiểm tra email format
+    public boolean isValidEmail(String email) {
+        return email != null && email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    }
+    
+    // Kiểm tra password strength
+    public boolean isValidPassword(String password) {
+        return password != null && password.length() >= 6;
+    }
+
     public boolean create(UserDTO user) throws SQLException {
+        // Enhanced validation
+        if (user == null) {
+            throw new SQLException("User data cannot be null");
+        }
+        if (user.getName() == null || user.getName().trim().isEmpty()) {
+            throw new SQLException("Name cannot be null or empty");
+        }
+        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+            throw new SQLException("Email cannot be null or empty");
+        }
+        if (!isValidEmail(user.getEmail())) {
+            throw new SQLException("Invalid email format");
+        }
+        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+            throw new SQLException("Password cannot be null or empty");
+        }
+        if (!isValidPassword(user.getPassword())) {
+            throw new SQLException("Password must be at least 6 characters long");
+        }
+        if (user.getPhone() <= 0) {
+            throw new SQLException("Invalid phone number");
+        }
+        if (user.getRoleID() <= 0) {
+            throw new SQLException("Invalid role ID");
+        }
+        
+        // Kiểm tra duplicate email
+        if (checkDuplicateEmail(user.getEmail())) {
+            throw new SQLException("Email '" + user.getEmail() + "' already exists");
+        }
+        
+        // Kiểm tra duplicate phone
+        if (checkDuplicatePhone(user.getPhone())) {
+            throw new SQLException("Phone number '" + user.getPhone() + "' already exists");
+        }
+        
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
@@ -259,12 +305,15 @@ public class UserDAO {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(CREATE);
-                ptm.setString(1, user.getName());
-                ptm.setString(2, user.getEmail());
+                ptm.setString(1, user.getName().trim());
+                ptm.setString(2, user.getEmail().trim().toLowerCase());
                 ptm.setString(3, user.getPassword());
                 ptm.setInt(4, user.getPhone());
                 ptm.setInt(5, user.getRoleID());
                 check = ptm.executeUpdate() > 0 ? true : false;
+                
+                System.out.println("Create User - Name: " + user.getName() + ", Email: " + user.getEmail() + 
+                                 ", Phone: " + user.getPhone() + ", RoleID: " + user.getRoleID());
             }
         } catch (Exception e) {
             e.printStackTrace();

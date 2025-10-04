@@ -14,36 +14,101 @@ import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.PinSlotDTO;
 
 public class PinSlotDAO {
-    private static final String UPDATE = "EXEC dbo.UpdatePinPercent";
-    private static final String LIST_PIN = "SELECT * FROM pinSlot";
-    private static final String DELETE = "DELETE FROM pinSLot WHERE stationID=?";
+    private static final String LIST_PIN = "SELECT * FROM dbo.pinSlot";
+    private static final String DELETE = "DELETE FROM dbo.pinSlot WHERE stationID=?";
+
+    // Kiểm tra pin slot có tồn tại không
+    public boolean isPinSlotExists(int pinID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        
+        String sql = "SELECT COUNT(1) FROM dbo.pinSlot WHERE pinID = ?";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, pinID);
+                rs = ptm.executeQuery();
+                
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error checking pin slot existence: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        return false;
+    }
+    
+    // Kiểm tra pin slot có available để reserve không
+    public boolean isPinSlotAvailable(int pinID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        
+        String sql = "SELECT reserveStatus FROM dbo.pinSlot WHERE pinID = ?";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, pinID);
+                rs = ptm.executeQuery();
+                
+                if (rs.next()) {
+                    String reserveStatus = rs.getString("reserveStatus");
+                    return "ready".equals(reserveStatus);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error checking pin slot availability: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        return false;
+    }
+    
+    // Kiểm tra pin percent hợp lệ (0-100)
+    public boolean isValidPinPercent(int pinPercent) {
+        return pinPercent >= 0 && pinPercent <= 100;
+    }
 
     // Thêm method declaration
     public boolean updatePinPercent() throws SQLException {
         boolean check = false;
         Connection conn = null;
-        PreparedStatement ptm = null;
+        CallableStatement cs = null;
 
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(UPDATE);
-                int rowsAffected = ptm.executeUpdate();
+                // Sử dụng CallableStatement cho stored procedure
+                cs = conn.prepareCall("{call dbo.UpdatePinPercent}");
+                cs.execute();
 
                 // Log để debug
-                System.out.println("UpdatePinPercent executed - Rows affected: " + rowsAffected);
+                System.out.println("UpdatePinPercent procedure executed successfully");
 
-                // Procedure chạy thành công dù có 0 rows affected
-                // Vì có thể không có record nào có pinStatus = 'unvaliable'
-                check = true; // ← Luôn return true nếu procedure execute thành công
+                // Procedure chạy thành công
+                check = true;
             }
         } catch (Exception e) {
             System.out.println("Error executing UpdatePinPercent: " + e.getMessage());
             e.printStackTrace();
             throw new SQLException("Failed to execute UpdatePinPercent: " + e.getMessage());
         } finally {
-            if (ptm != null) {
-                ptm.close();
+            if (cs != null) {
+                cs.close();
             }
             if (conn != null) {
                 conn.close();
@@ -151,6 +216,17 @@ public class PinSlotDAO {
 
     // Method để reserve slot
     public boolean reserveSlot(int pinID) throws SQLException {
+        // Enhanced validation
+        if (pinID <= 0) {
+            throw new SQLException("Invalid pin ID");
+        }
+        if (!isPinSlotExists(pinID)) {
+            throw new SQLException("Pin slot with ID " + pinID + " does not exist");
+        }
+        if (!isPinSlotAvailable(pinID)) {
+            throw new SQLException("Pin slot " + pinID + " is not available for reservation");
+        }
+        
         boolean success = false;
         Connection conn = null;
         PreparedStatement ptm = null;
@@ -230,6 +306,17 @@ public class PinSlotDAO {
 
     // Method để update PinSlot theo pinID - cho Update Pin Slot API
     public boolean updatePinSlot(int pinID, int pinPercent) throws SQLException {
+        // Enhanced validation
+        if (pinID <= 0) {
+            throw new SQLException("Invalid pin ID");
+        }
+        if (!isValidPinPercent(pinPercent)) {
+            throw new SQLException("Pin percent must be between 0 and 100");
+        }
+        if (!isPinSlotExists(pinID)) {
+            throw new SQLException("Pin slot with ID " + pinID + " does not exist");
+        }
+        
         boolean success = false;
         Connection conn = null;
         PreparedStatement ptm = null;
