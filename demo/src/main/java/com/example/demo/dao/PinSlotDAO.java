@@ -72,8 +72,11 @@ public class PinSlotDAO {
                     Timestamp reserveTimeStamp = rs.getTimestamp("reserveTime");
                     LocalDateTime reserveTime = (reserveTimeStamp != null) ? reserveTimeStamp.toLocalDateTime() : null;
                     
-                    // Sử dụng constructor với đầy đủ 5 fields
-                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinStatus, reserveStatus, reserveTime));
+                    // Đọc stationID từ database
+                    Integer stationID = rs.getObject("stationID", Integer.class);
+                    
+                    // Sử dụng constructor với đầy đủ 6 fields
+                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinStatus, reserveStatus, reserveTime, stationID));
                 }
             }
         } catch (Exception e) {

@@ -8,6 +8,7 @@ public class PinSlotDTO {
     private String pinStatus;
     private String reserveStatus;
     private LocalDateTime reserveTime;
+    private Integer stationID; // Thêm stationID để biết pin thuộc station nào
 
     public PinSlotDTO() {
         this.pinID = 0;
@@ -15,6 +16,7 @@ public class PinSlotDTO {
         this.pinStatus = "";
         this.reserveStatus = "ready";
         this.reserveTime = null;
+        this.stationID = null;
     }
 
     public PinSlotDTO(int pinID, int pinPercent, String pinStatus) {
@@ -23,6 +25,7 @@ public class PinSlotDTO {
         this.pinStatus = pinStatus;
         this.reserveStatus = "ready";
         this.reserveTime = null;
+        this.stationID = null;
     }
 
     public PinSlotDTO(int pinID, int pinPercent, String pinStatus, String reserveStatus, LocalDateTime reserveTime) {
@@ -31,6 +34,17 @@ public class PinSlotDTO {
         this.pinStatus = pinStatus;
         this.reserveStatus = reserveStatus;
         this.reserveTime = reserveTime;
+        this.stationID = null;
+    }
+    
+    // Constructor with stationID
+    public PinSlotDTO(int pinID, int pinPercent, String pinStatus, String reserveStatus, LocalDateTime reserveTime, Integer stationID) {
+        this.pinID = pinID;
+        this.pinPercent = pinPercent;
+        this.pinStatus = pinStatus;
+        this.reserveStatus = reserveStatus;
+        this.reserveTime = reserveTime;
+        this.stationID = stationID;
     }
 
     public int getPinID() {
@@ -71,5 +85,13 @@ public class PinSlotDTO {
 
     public void setReserveTime(LocalDateTime reserveTime) {
         this.reserveTime = reserveTime;
+    }
+    
+    public Integer getStationID() {
+        return stationID;
+    }
+
+    public void setStationID(Integer stationID) {
+        this.stationID = stationID;
     }
 }

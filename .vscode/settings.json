@@ -15,5 +15,21 @@
         "java:S1854": "off",
         "java:S1481": "off",
         "java:S1172": "off"
-    }
+    },
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-21",
+            "path": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.8.9-hotspot"
+        },
+        {
+            "name": "JavaSE-24",
+            "path": "C:\\Program Files\\Java\\jdk-24.0.2",
+            "default": true
+        }
+    ],
+    "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-24.0.2",
+    "java.import.gradle.java.home": "C:\\Program Files\\Java\\jdk-24.0.2",
+    "java.home": "C:\\Program Files\\Java\\jdk-24.0.2",
+    "java.debug.settings.enableRunDebugCodeLens": false,
+    "spring-boot.ls.java.home": "C:\\Program Files\\Java\\jdk-24.0.2"
 }

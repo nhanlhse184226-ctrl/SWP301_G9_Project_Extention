@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run DemoApplication (Java 24)",
+            "request": "launch",
+            "mainClass": "com.example.demo.DemoApplication",
+            "projectName": "demo",
+            "javaExec": "C:\\Program Files\\Java\\jdk-24.0.2\\bin\\java.exe",
+            "args": "",
+            "vmArgs": ""
+        }
+    ]
+}
