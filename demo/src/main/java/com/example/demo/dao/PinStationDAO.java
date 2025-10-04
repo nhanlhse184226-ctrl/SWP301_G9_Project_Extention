@@ -157,4 +157,40 @@ public class PinStationDAO {
         
         return station;
     }
+
+    // Method để xóa PinStation (copy từ UserDAO)
+    public boolean delete(PinStationDTO pinStation) throws SQLException {
+        boolean check_pinStation = false;
+        boolean check_pinSlot = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        
+        String DELETE_PIN_STATION = "DELETE FROM dbo.pinStation WHERE stationID=?";
+        String DELETE_PIN_SLOT = "DELETE FROM dbo.pinSlot WHERE stationID=?";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(DELETE_PIN_SLOT);
+                ptm.setInt(1, pinStation.getStationID());
+                check_pinSlot = ptm.executeUpdate() > 0 ? true : false;
+                if(check_pinSlot) {
+                    ptm = conn.prepareStatement(DELETE_PIN_STATION);
+                    ptm.setInt(1, pinStation.getStationID());
+                    check_pinStation = ptm.executeUpdate() > 0 ? true : false;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error deleting pin station: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return check_pinStation;
+    }
 }

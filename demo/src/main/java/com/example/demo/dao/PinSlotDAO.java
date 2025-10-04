@@ -15,26 +15,27 @@ import com.example.demo.dto.PinSlotDTO;
 
 public class PinSlotDAO {
     private static final String UPDATE = "EXEC dbo.UpdatePinPercent";
-    private static final String LIST_PIN = "SELECT * FROM dbo.pin"; 
-    
+    private static final String LIST_PIN = "SELECT * FROM pinSlot";
+    private static final String DELETE = "DELETE FROM pinSLot WHERE stationID=?";
+
     // Thêm method declaration
     public boolean updatePinPercent() throws SQLException {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
-        
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(UPDATE);
                 int rowsAffected = ptm.executeUpdate();
-                
+
                 // Log để debug
                 System.out.println("UpdatePinPercent executed - Rows affected: " + rowsAffected);
-                
+
                 // Procedure chạy thành công dù có 0 rows affected
                 // Vì có thể không có record nào có pinStatus = 'unvaliable'
-                check = true;  // ← Luôn return true nếu procedure execute thành công
+                check = true; // ← Luôn return true nếu procedure execute thành công
             }
         } catch (Exception e) {
             System.out.println("Error executing UpdatePinPercent: " + e.getMessage());
@@ -48,7 +49,7 @@ public class PinSlotDAO {
                 conn.close();
             }
         }
-        
+
         return check;
     }
 
@@ -66,21 +67,22 @@ public class PinSlotDAO {
                     int pinID = rs.getInt("pinID");
                     int pinPercent = rs.getInt("pinPercent");
                     String pinStatus = rs.getString("pinStatus");
-                    
+
                     // Đọc thêm reservation fields
                     String reserveStatus = rs.getString("reserveStatus");
                     Timestamp reserveTimeStamp = rs.getTimestamp("reserveTime");
                     LocalDateTime reserveTime = (reserveTimeStamp != null) ? reserveTimeStamp.toLocalDateTime() : null;
-                    
+
                     // Đọc stationID từ database
                     Integer stationID = rs.getObject("stationID", Integer.class);
-                    
+
                     // Sử dụng constructor với đầy đủ 6 fields
-                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinStatus, reserveStatus, reserveTime, stationID));
+                    listPinSlot
+                            .add(new PinSlotDTO(pinID, pinPercent, pinStatus, reserveStatus, reserveTime, stationID));
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();  // ← Thêm error logging
+            e.printStackTrace(); // ← Thêm error logging
             throw new SQLException("Error getting pin slot list: " + e.getMessage());
         } finally {
             if (rs != null) {
@@ -95,38 +97,39 @@ public class PinSlotDAO {
         }
         return listPinSlot;
     }
-    
+
     // Method để lấy danh sách PinSlot theo stationID
     public List<PinSlotDTO> getListPinSlotByStation(int stationID) throws SQLException {
         List<PinSlotDTO> listPinSlot = new ArrayList<>();
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
-        
-        String sql = "SELECT * FROM dbo.pin WHERE stationID = ?";
-        
+
+        String sql = "SELECT * FROM dbo.pinSlot WHERE stationID = ?";
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(sql);
                 ptm.setInt(1, stationID);
                 rs = ptm.executeQuery();
-                
+
                 while (rs.next()) {
                     int pinID = rs.getInt("pinID");
                     int pinPercent = rs.getInt("pinPercent");
                     String pinStatus = rs.getString("pinStatus");
-                    
+
                     // Đọc thêm reservation fields
                     String reserveStatus = rs.getString("reserveStatus");
                     Timestamp reserveTimeStamp = rs.getTimestamp("reserveTime");
                     LocalDateTime reserveTime = (reserveTimeStamp != null) ? reserveTimeStamp.toLocalDateTime() : null;
-                    
+
                     // Đọc stationID từ database
                     Integer stationIDFromDB = rs.getObject("stationID", Integer.class);
-                    
+
                     // Sử dụng constructor với đầy đủ 6 fields
-                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinStatus, reserveStatus, reserveTime, stationIDFromDB));
+                    listPinSlot.add(
+                            new PinSlotDTO(pinID, pinPercent, pinStatus, reserveStatus, reserveTime, stationIDFromDB));
                 }
             }
         } catch (Exception e) {
@@ -145,24 +148,24 @@ public class PinSlotDAO {
         }
         return listPinSlot;
     }
-    
+
     // Method để reserve slot
     public boolean reserveSlot(int pinID) throws SQLException {
         boolean success = false;
         Connection conn = null;
         PreparedStatement ptm = null;
-        
-        String sql = "UPDATE dbo.pin SET reserveStatus = 'not ready', reserveTime = GETDATE() WHERE pinID = ? AND reserveStatus = 'ready'";
-        
+
+        String sql = "UPDATE dbo.pinSlot SET reserveStatus = 'not ready', reserveTime = GETDATE() WHERE pinID = ? AND reserveStatus = 'ready'";
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(sql);
                 ptm.setInt(1, pinID);
-                
+
                 int rowsAffected = ptm.executeUpdate();
                 success = (rowsAffected > 0);
-                
+
                 System.out.println("Reserve slot " + pinID + " - Rows affected: " + rowsAffected);
             }
         } catch (ClassNotFoundException e) {
@@ -182,26 +185,26 @@ public class PinSlotDAO {
                 conn.close();
             }
         }
-        
+
         return success;
     }
-    
+
     // Method để reset tất cả reservations đã quá 60 phút
     public boolean resetExpiredReservations() throws SQLException {
         boolean success = false;
         Connection conn = null;
         CallableStatement cs = null;
-        
+
         String sql = "{call ResetExpiredReservations_Test}";
-        
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 cs = conn.prepareCall(sql);
-                
+
                 cs.execute();
                 success = true;
-                
+
                 System.out.println("Reset expired reservations (Test 1min) procedure executed successfully");
             }
         } catch (ClassNotFoundException e) {
@@ -221,22 +224,22 @@ public class PinSlotDAO {
                 conn.close();
             }
         }
-        
+
         return success;
     }
-    
+
     // Method để update PinSlot theo pinID - cho Update Pin Slot API
     public boolean updatePinSlot(int pinID, int pinPercent) throws SQLException {
         boolean success = false;
         Connection conn = null;
         PreparedStatement ptm = null;
-        
+
         // Logic: Update pin và set status theo giá trị pin
         // Pin < 100% → status = "unvaliable"
         // Pin = 100% → status = "valiable"
-        String sql = "UPDATE dbo.pin SET pinPercent = ?, pinStatus = ? WHERE pinID = ?";
+        String sql = "UPDATE dbo.pinSlot SET pinPercent = ?, pinStatus = ? WHERE pinID = ?";
         String newStatus = (pinPercent < 100) ? "unvaliable" : "valiable";
-        
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
@@ -244,11 +247,12 @@ public class PinSlotDAO {
                 ptm.setInt(1, pinPercent);
                 ptm.setString(2, newStatus);
                 ptm.setInt(3, pinID);
-                
+
                 int rowsAffected = ptm.executeUpdate();
                 success = (rowsAffected > 0);
-                
-                System.out.println("Update PinSlot - PinID: " + pinID + ", NewPercent: " + pinPercent + "%, Status: " + newStatus + ", Rows affected: " + rowsAffected);
+
+                System.out.println("Update PinSlot - PinID: " + pinID + ", NewPercent: " + pinPercent + "%, Status: "
+                        + newStatus + ", Rows affected: " + rowsAffected);
             }
         } catch (ClassNotFoundException e) {
             System.out.println("Database driver not found: " + e.getMessage());
@@ -267,7 +271,7 @@ public class PinSlotDAO {
                 conn.close();
             }
         }
-        
+
         return success;
     }
 }

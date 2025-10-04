@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -122,6 +123,29 @@ public class PinStationController {
             System.out.println("Error getting pin station: " + e.getMessage());
             return ResponseEntity.internalServerError()
                 .body(ApiResponse.error("Error getting pin station: " + e.getMessage()));
+        }
+    }
+    
+    // API để xóa pinStation (copy từ UserController)
+    @DeleteMapping("/pinStation/delete")
+    public ResponseEntity<ApiResponse<Object>> deletePinStation(@RequestParam int stationID) {
+        try {
+            // Tạo PinStationDTO với stationID để delete
+            PinStationDTO deletePinStation = new PinStationDTO();
+            deletePinStation.setStationID(stationID);
+            
+            // Xóa pinStation khỏi database
+            boolean result = pinStationDAO.delete(deletePinStation);
+            
+            if (result) {
+                return ResponseEntity.ok(ApiResponse.success("Pin station deleted successfully", null));
+            } else {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Failed to delete pin station or station not found"));
+            }
+            
+        } catch (Exception e) {
+            System.out.println("Error at deletePinStation: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
         }
     }
     
