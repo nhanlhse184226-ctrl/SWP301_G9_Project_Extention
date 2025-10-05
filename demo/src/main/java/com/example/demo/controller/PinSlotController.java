@@ -17,15 +17,21 @@ import com.example.demo.dao.PinSlotDAO;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.PinSlotDTO;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
+@Tag(name = "Pin Slot Management", description = "APIs for managing individual charging slots, reservations, and charging status")
 public class PinSlotController {
     
     private PinSlotDAO pinSlotDAO = new PinSlotDAO();
     
     // API để trigger manual update
     @GetMapping("/pinSlot/updatePinPercent")
+    @Operation(summary = "Manual charging update", description = "Manually trigger charging percentage update for all pin slots (+1% per call).")
     public ResponseEntity<ApiResponse<Object>> updatePinSlotManual() {
         try {
             boolean check = pinSlotDAO.updatePinPercent();
@@ -78,7 +84,9 @@ public class PinSlotController {
     
     // API để lấy danh sách PinSlot theo stationID
     @GetMapping("/pinSlot/list")
-    public ResponseEntity<ApiResponse<Object>> getListPinSlot(@RequestParam int stationID) {
+    @Operation(summary = "Get charging slots by station", description = "Retrieve all charging slots for a specific station with their current status and availability.")
+    public ResponseEntity<ApiResponse<Object>> getListPinSlot(
+            @Parameter(description = "Station ID to get slots for", required = true) @RequestParam int stationID) {
         try {
             // Validation
             if (stationID <= 0) {
@@ -101,6 +109,7 @@ public class PinSlotController {
     
     // API để lấy tất cả PinSlot (không filter theo station)
     @GetMapping("/pinSlot/listAll")
+    @Operation(summary = "Get all charging slots", description = "Retrieve all charging slots from all stations (Admin view).")
     public ResponseEntity<ApiResponse<Object>> getAllPinSlots() {
         try {
             List<PinSlotDTO> listPinSlot = pinSlotDAO.getListPinSlot();
@@ -119,13 +128,16 @@ public class PinSlotController {
     
     // API để kiểm tra status
     @GetMapping("/pinSlot/status")
+    @Operation(summary = "Check slot service status", description = "Check if the pin slot management service is running with scheduled updates.")
     public ResponseEntity<ApiResponse<Object>> getPinSlotStatus() {
         return ResponseEntity.ok(ApiResponse.success("PinSlot service is running", "Scheduled updates every 1 minute"));
     }
     
     // API để reserve slot
     @PostMapping("/pinSlot/reserve")
-    public ResponseEntity<ApiResponse<Object>> reserveSlot(@RequestParam int pinID) {
+    @Operation(summary = "Reserve charging slot", description = "Reserve a specific charging slot for use. Slot becomes unavailable for 1 minute.")
+    public ResponseEntity<ApiResponse<Object>> reserveSlot(
+            @Parameter(description = "Pin slot ID to reserve", required = true) @RequestParam int pinID) {
         try {
             boolean success = pinSlotDAO.reserveSlot(pinID);
             
@@ -146,9 +158,10 @@ public class PinSlotController {
     
     // API để update PinSlot theo pinID (Method 1: Request Parameters)
     @PutMapping("/pinSlot/updateSlot")
+    @Operation(summary = "Update slot charging level", description = "Manually update the charging percentage (0-100%) of a specific pin slot.")
     public ResponseEntity<ApiResponse<Object>> updatePinSlot(
-            @RequestParam int pinID, 
-            @RequestParam int pinPercent) {
+            @Parameter(description = "Pin slot ID to update", required = true) @RequestParam int pinID,
+            @Parameter(description = "New charging percentage (0-100)", required = true, example = "85") @RequestParam int pinPercent) {
         
         try {
             // Validate pinPercent (0-100)

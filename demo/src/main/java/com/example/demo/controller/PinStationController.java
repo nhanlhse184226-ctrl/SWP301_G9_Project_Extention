@@ -18,19 +18,25 @@ import com.example.demo.dao.PinStationDAO;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.PinStationDTO;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
+@Tag(name = "Pin Station Management", description = "APIs for managing charging stations and their properties")
 public class PinStationController {
     
     private final PinStationDAO pinStationDAO = new PinStationDAO();
     
     // API để tạo PinStation mới (trigger sẽ tự động tạo 15 pin slots)
     @PostMapping("/pinStation/create")
+    @Operation(summary = "Create new charging station", description = "Create a new charging station with specified name and location. Automatically creates 15 pin slots for the station.")
     public ResponseEntity<ApiResponse<Object>> createPinStation(
-            @RequestParam String stationName,
-            @RequestParam String location,
-            @RequestParam(defaultValue = "active") String status) {
+            @Parameter(description = "Name of the charging station", required = true) @RequestParam String stationName,
+            @Parameter(description = "Location/address of the charging station", required = true) @RequestParam String location,
+            @Parameter(description = "Station status (active/inactive)", example = "active") @RequestParam(defaultValue = "active") String status) {
         
         try {
             // Validate input
@@ -73,6 +79,7 @@ public class PinStationController {
     
     // API để lấy danh sách tất cả PinStations
     @GetMapping("/pinStation/list")
+    @Operation(summary = "Get all charging stations", description = "Retrieve a list of all charging stations with their details including name, location, and status.")
     public ResponseEntity<ApiResponse<Object>> getListPinStation() {
         try {
             List<PinStationDTO> listPinStation = pinStationDAO.getListPinStation();
@@ -98,7 +105,9 @@ public class PinStationController {
     
     // API để lấy PinStation theo ID
     @GetMapping("/pinStation/{stationID}")
-    public ResponseEntity<ApiResponse<Object>> getPinStationById(@PathVariable int stationID) {
+    @Operation(summary = "Get charging station by ID", description = "Retrieve details of a specific charging station using its ID.")
+    public ResponseEntity<ApiResponse<Object>> getPinStationById(
+            @Parameter(description = "Station ID to retrieve", required = true) @PathVariable int stationID) {
         try {
             // Validate input
             if (stationID <= 0) {
@@ -129,11 +138,12 @@ public class PinStationController {
     
     // API để update PinStation
     @PutMapping("/pinStation/update")
+    @Operation(summary = "Update charging station", description = "Update charging station information including name, location, and status.")
     public ResponseEntity<ApiResponse<Object>> updatePinStation(
-            @RequestParam int stationID,
-            @RequestParam String stationName,
-            @RequestParam String location,
-            @RequestParam String status) {
+            @Parameter(description = "Station ID to update", required = true) @RequestParam int stationID,
+            @Parameter(description = "New station name", required = true) @RequestParam String stationName,
+            @Parameter(description = "New station location", required = true) @RequestParam String location,
+            @Parameter(description = "New station status", required = true) @RequestParam String status) {
         
         try {
             // Validate input
@@ -184,7 +194,9 @@ public class PinStationController {
     
     // API để xóa pinStation (copy từ UserController)
     @DeleteMapping("/pinStation/delete")
-    public ResponseEntity<ApiResponse<Object>> deletePinStation(@RequestParam int stationID) {
+    @Operation(summary = "Delete charging station", description = "Delete a charging station and all its associated pin slots permanently.")
+    public ResponseEntity<ApiResponse<Object>> deletePinStation(
+            @Parameter(description = "Station ID to delete", required = true) @RequestParam int stationID) {
         try {
             // Tạo PinStationDTO với stationID để delete
             PinStationDTO deletePinStation = new PinStationDTO();
@@ -207,6 +219,7 @@ public class PinStationController {
     
     // API để kiểm tra status service
     @GetMapping("/pinStation/status")
+    @Operation(summary = "Check service status", description = "Check if the Pin Station service is running and available.")
     public ResponseEntity<ApiResponse<Object>> getPinStationStatus() {
         return ResponseEntity.ok(
             ApiResponse.success("Pin Station service is running", 
