@@ -16,7 +16,6 @@ import com.example.demo.dto.PinSlotDTO;
 public class PinSlotDAO {
     private static final String UPDATE = "EXEC dbo.UpdatePinPercent";
     private static final String LIST_PIN = "SELECT * FROM pinSlot";
-    private static final String DELETE = "DELETE FROM pinSLot WHERE stationID=?";
 
     // Thêm method declaration
     public boolean updatePinPercent() throws SQLException {
