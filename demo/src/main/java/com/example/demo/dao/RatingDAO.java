@@ -12,8 +12,89 @@ import com.example.demo.dto.RatingDTO;
 
 public class RatingDAO {
     
+    // Kiểm tra user đã rating station này chưa
+    public boolean hasUserRatedStation(int stationID, Integer userID) throws SQLException {
+        if (userID == null) return false; // Anonymous user có thể rating nhiều lần
+        
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        
+        String sql = "SELECT COUNT(*) FROM dbo.rating WHERE stationID = ? AND userID = ?";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, stationID);
+                ptm.setInt(2, userID);
+                rs = ptm.executeQuery();
+                
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        
+        return false;
+    }
+    
+    // Kiểm tra station có tồn tại không
+    public boolean isStationExists(int stationID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        
+        String sql = "SELECT COUNT(*) FROM dbo.pinStation WHERE stationID = ?";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, stationID);
+                rs = ptm.executeQuery();
+                
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        
+        return false;
+    }
+    
     // Method để tạo rating mới
     public boolean createRating(int stationID, Integer userID, int rating) throws SQLException {
+        // Enhanced validation
+        if (stationID <= 0) {
+            throw new SQLException("Invalid station ID");
+        }
+        if (rating < 1 || rating > 5) {
+            throw new SQLException("Rating must be between 1 and 5 stars");
+        }
+        
+        // Kiểm tra station có tồn tại không
+        if (!isStationExists(stationID)) {
+            throw new SQLException("Station with ID " + stationID + " does not exist");
+        }
+        
+        // Kiểm tra user đã rating station này chưa (chỉ với user đã đăng nhập)
+        if (userID != null && hasUserRatedStation(stationID, userID)) {
+            throw new SQLException("User has already rated this station");
+        }
+        
         boolean success = false;
         Connection conn = null;
         PreparedStatement ptm = null;
