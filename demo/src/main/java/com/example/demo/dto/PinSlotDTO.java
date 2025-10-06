@@ -1,49 +1,34 @@
 package com.example.demo.dto;
 
-import java.time.LocalDateTime;
-
 public class PinSlotDTO {
     private int pinID;
     private int pinPercent;
-    private String pinStatus;
-    private String reserveStatus;
-    private LocalDateTime reserveTime;
+    private int pinStatus;
+    private int status; // Thêm trường status mới
     private Integer stationID; // Thêm stationID để biết pin thuộc station nào
 
     public PinSlotDTO() {
         this.pinID = 0;
         this.pinPercent = 0;
-        this.pinStatus = "";
-        this.reserveStatus = "ready";
-        this.reserveTime = null;
+        this.pinStatus = 0;
+        this.status = 0;
         this.stationID = null;
     }
 
-    public PinSlotDTO(int pinID, int pinPercent, String pinStatus) {
+    public PinSlotDTO(int pinID, int pinPercent, int pinStatus, int status) {
         this.pinID = pinID;
         this.pinPercent = pinPercent;
         this.pinStatus = pinStatus;
-        this.reserveStatus = "ready";
-        this.reserveTime = null;
+        this.status = status;
         this.stationID = null;
     }
 
-    public PinSlotDTO(int pinID, int pinPercent, String pinStatus, String reserveStatus, LocalDateTime reserveTime) {
+    // Constructor with stationID and status
+    public PinSlotDTO(int pinID, int pinPercent, int pinStatus, int status, Integer stationID) {
         this.pinID = pinID;
         this.pinPercent = pinPercent;
         this.pinStatus = pinStatus;
-        this.reserveStatus = reserveStatus;
-        this.reserveTime = reserveTime;
-        this.stationID = null;
-    }
-    
-    // Constructor with stationID
-    public PinSlotDTO(int pinID, int pinPercent, String pinStatus, String reserveStatus, LocalDateTime reserveTime, Integer stationID) {
-        this.pinID = pinID;
-        this.pinPercent = pinPercent;
-        this.pinStatus = pinStatus;
-        this.reserveStatus = reserveStatus;
-        this.reserveTime = reserveTime;
+        this.status = status;
         this.stationID = stationID;
     }
 
@@ -63,28 +48,20 @@ public class PinSlotDTO {
         this.pinPercent = pinPercent;
     }
 
-    public String getPinStatus() {
+    public int getPinStatus() {
         return pinStatus;
     }
 
-    public void setPinStatus(String pinStatus) {
+    public void setPinStatus(int pinStatus) {
         this.pinStatus = pinStatus;
     }
-
-    public String getReserveStatus() {
-        return reserveStatus;
+    
+    public int getStatus() {
+        return status;
     }
 
-    public void setReserveStatus(String reserveStatus) {
-        this.reserveStatus = reserveStatus;
-    }
-
-    public LocalDateTime getReserveTime() {
-        return reserveTime;
-    }
-
-    public void setReserveTime(LocalDateTime reserveTime) {
-        this.reserveTime = reserveTime;
+    public void setStatus(int status) {
+        this.status = status;
     }
     
     public Integer getStationID() {

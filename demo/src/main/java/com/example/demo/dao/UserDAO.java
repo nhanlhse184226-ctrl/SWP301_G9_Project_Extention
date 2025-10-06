@@ -36,7 +36,7 @@ public class UserDAO {
                     int userID = rs.getInt("userID");
                     String Name = rs.getString("Name");
                     String userEmail = rs.getString("Email");
-                    int phone = rs.getInt("phone");
+                    long phone = rs.getLong("phone");
                     int roleID = rs.getInt("roleID");
                     user = new UserDTO(userID, Name, userEmail, "***", phone, roleID);
                 }
@@ -73,7 +73,7 @@ public class UserDAO {
                     String Name = rs.getString("Name");
                     String Email = rs.getString("Email");
                     String Password = rs.getString("Password");
-                    int phone = rs.getInt("phone");
+                    long phone = rs.getLong("phone");
                     int roleID = rs.getInt("roleID"); // Lấy roleID từ database thay vì hardcode
                     listDriver.add(new UserDTO(userID, Name, Email, Password, phone, roleID));
                 }
@@ -110,7 +110,7 @@ public class UserDAO {
                     String Name = rs.getString("Name");
                     String Email = rs.getString("Email");
                     String Password = rs.getString("Password");
-                    int phone = rs.getInt("phone");
+                    long phone = rs.getLong("phone");
                     int roleID = rs.getInt("roleID");
                     listStaff.add(new UserDTO(userID, Name, Email, Password, phone, roleID));
                 }
@@ -143,7 +143,7 @@ public class UserDAO {
                 ptm.setString(1, user.getName());
                 ptm.setString(2, user.getEmail());
                 ptm.setString(3, user.getPassword());
-                ptm.setInt(4, user.getPhone());
+                ptm.setLong(4, user.getPhone());
                 ptm.setInt(5, user.getRoleID());
                 ptm.setInt(6, user.getUserID());
                 check = ptm.executeUpdate() > 0 ? true : false;
@@ -219,7 +219,7 @@ public class UserDAO {
         return check;
     }
 
-    public boolean checkDuplicatePhone(int phone) throws SQLException {
+    public boolean checkDuplicatePhone(long phone) throws SQLException {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
@@ -228,7 +228,7 @@ public class UserDAO {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(DUPLICATE_PHONE);
-                ptm.setInt(1, phone);
+                ptm.setLong(1, phone);
                 rs = ptm.executeQuery();
                 if (rs.next()) {
                     check = true;
@@ -258,7 +258,7 @@ public class UserDAO {
     
     // Kiểm tra password strength
     public boolean isValidPassword(String password) {
-        return password != null && password.length() >= 6;
+        return password != null;
     }
 
     public boolean create(UserDTO user) throws SQLException {
@@ -277,9 +277,6 @@ public class UserDAO {
         }
         if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
             throw new SQLException("Password cannot be null or empty");
-        }
-        if (!isValidPassword(user.getPassword())) {
-            throw new SQLException("Password must be at least 6 characters long");
         }
         if (user.getPhone() <= 0) {
             throw new SQLException("Invalid phone number");
@@ -308,7 +305,7 @@ public class UserDAO {
                 ptm.setString(1, user.getName().trim());
                 ptm.setString(2, user.getEmail().trim().toLowerCase());
                 ptm.setString(3, user.getPassword());
-                ptm.setInt(4, user.getPhone());
+                ptm.setLong(4, user.getPhone());
                 ptm.setInt(5, user.getRoleID());
                 check = ptm.executeUpdate() > 0 ? true : false;
                 

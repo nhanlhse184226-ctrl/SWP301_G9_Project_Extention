@@ -24,7 +24,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
 @Tag(name = "Pin Station Management", description = "APIs for managing charging stations and their properties")
 public class PinStationController {
     
@@ -36,7 +35,9 @@ public class PinStationController {
     public ResponseEntity<ApiResponse<Object>> createPinStation(
             @Parameter(description = "Name of the charging station", required = true) @RequestParam String stationName,
             @Parameter(description = "Location/address of the charging station", required = true) @RequestParam String location,
-            @Parameter(description = "Station status (active/inactive)", example = "active") @RequestParam(defaultValue = "active") String status) {
+            @Parameter(description = "Station status (0=inactive, 1=active, 2=maintenance)", example = "1") @RequestParam(defaultValue = "1") int status,
+            @Parameter(description = "X coordinate of the station", required = true) @RequestParam int x,
+            @Parameter(description = "Y coordinate of the station", required = true) @RequestParam int y) {
         
         try {
             // Validate input
@@ -50,11 +51,19 @@ public class PinStationController {
                     .body(ApiResponse.error("Location is required"));
             }
             
+            // Validate status
+            if (status < 0 || status > 2) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Status must be 0 (inactive), 1 (active), or 2 (maintenance)"));
+            }
+            
             // Gọi DAO để tạo station mới
             boolean success = pinStationDAO.createPinStation(
                 stationName.trim(), 
                 location.trim(), 
-                status.trim()
+                status,
+                x,
+                y
             );
             
             if (success) {
@@ -138,12 +147,14 @@ public class PinStationController {
     
     // API để update PinStation
     @PutMapping("/pinStation/update")
-    @Operation(summary = "Update charging station", description = "Update charging station information including name, location, and status.")
+    @Operation(summary = "Update charging station", description = "Update charging station information including name, location, status, and coordinates.")
     public ResponseEntity<ApiResponse<Object>> updatePinStation(
             @Parameter(description = "Station ID to update", required = true) @RequestParam int stationID,
             @Parameter(description = "New station name", required = true) @RequestParam String stationName,
             @Parameter(description = "New station location", required = true) @RequestParam String location,
-            @Parameter(description = "New station status", required = true) @RequestParam String status) {
+            @Parameter(description = "New station status (0=inactive, 1=active, 2=maintenance)", required = true) @RequestParam int status,
+            @Parameter(description = "New X coordinate", required = true) @RequestParam int x,
+            @Parameter(description = "New Y coordinate", required = true) @RequestParam int y) {
         
         try {
             // Validate input
@@ -159,9 +170,9 @@ public class PinStationController {
                 return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Location is required"));
             }
-            if (status == null || status.trim().isEmpty()) {
+            if (status < 0 || status > 2) {
                 return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Status is required"));
+                    .body(ApiResponse.error("Status must be 0 (inactive), 1 (active), or 2 (maintenance)"));
             }
             
             // Gọi DAO để update station
@@ -169,7 +180,9 @@ public class PinStationController {
                 stationID,
                 stationName.trim(), 
                 location.trim(), 
-                status.trim()
+                status,
+                x,
+                y
             );
             
             if (success) {
@@ -192,27 +205,23 @@ public class PinStationController {
         }
     }
     
-    // API để xóa pinStation (copy từ UserController)
-    @DeleteMapping("/pinStation/delete")
-    @Operation(summary = "Delete charging station", description = "Delete a charging station and all its associated pin slots permanently.")
-    public ResponseEntity<ApiResponse<Object>> deletePinStation(
-            @Parameter(description = "Station ID to delete", required = true) @RequestParam int stationID) {
+    // API để đảo ngược status của pinStation và pinSlot
+    @GetMapping("/pinStation/updateStat")
+    @Operation(summary = "Toggle station status", description = "Toggle the status of a charging station and all its associated pin slots between active and inactive.")
+    public ResponseEntity<ApiResponse<Object>> togglePinStationStatus(
+            @Parameter(description = "Station ID to toggle status", required = true) @RequestParam int stationID) {
         try {
-            // Tạo PinStationDTO với stationID để delete
-            PinStationDTO deletePinStation = new PinStationDTO();
-            deletePinStation.setStationID(stationID);
-            
-            // Xóa pinStation khỏi database
-            boolean result = pinStationDAO.delete(deletePinStation);
-            
+            // Đảo ngược status của pinStation và tất cả pinSlot
+            boolean result = pinStationDAO.updateStatus(stationID);
+
             if (result) {
-                return ResponseEntity.ok(ApiResponse.success("Pin station deleted successfully", null));
+                return ResponseEntity.ok(ApiResponse.success("Pin station status updated successfully", null));
             } else {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Failed to delete pin station or station not found"));
+                return ResponseEntity.badRequest().body(ApiResponse.error("Failed to update pin station status or station not found"));
             }
             
         } catch (Exception e) {
-            System.out.println("Error at deletePinStation: " + e.toString());
+            System.out.println("Error at togglePinStationStatus: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
         }
     }

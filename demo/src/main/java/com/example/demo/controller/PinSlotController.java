@@ -5,9 +5,10 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,8 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
-@Tag(name = "Pin Slot Management", description = "APIs for managing individual charging slots, reservations, and charging status")
+@Tag(name = "Pin Slot Management", description = "APIs for managing individual charging slots and charging status")
 public class PinSlotController {
     
     private PinSlotDAO pinSlotDAO = new PinSlotDAO();
@@ -62,23 +62,6 @@ public class PinSlotController {
             
         } catch (SQLException e) {
             System.out.println("Scheduled update error: " + e.toString());
-        }
-    }
-    
-    // Scheduled task để reset expired reservations - chạy mỗi 5 giây để kiểm tra và reset những slot đã reserve quá 1 phút
-    @Scheduled(fixedDelay = 5000) 
-    public void resetExpiredReservationsScheduled() {
-        try {
-            boolean check = pinSlotDAO.resetExpiredReservations();
-            
-            if (check) {
-                System.out.println("Scheduled reset: Expired reservations reset successfully at " + new java.util.Date());
-            } else {
-                System.out.println("Scheduled reset: Reset expired reservations failed at " + new java.util.Date());
-            }
-            
-        } catch (SQLException e) {
-            System.out.println("Scheduled reset error: " + e.toString());
         }
     }
     
@@ -133,29 +116,6 @@ public class PinSlotController {
         return ResponseEntity.ok(ApiResponse.success("PinSlot service is running", "Scheduled updates every 1 minute"));
     }
     
-    // API để reserve slot
-    @PostMapping("/pinSlot/reserve")
-    @Operation(summary = "Reserve charging slot", description = "Reserve a specific charging slot for use. Slot becomes unavailable for 1 minute.")
-    public ResponseEntity<ApiResponse<Object>> reserveSlot(
-            @Parameter(description = "Pin slot ID to reserve", required = true) @RequestParam int pinID) {
-        try {
-            boolean success = pinSlotDAO.reserveSlot(pinID);
-            
-            if (success) {
-                return ResponseEntity.ok(ApiResponse.success("Slot reserved successfully", "Pin slot " + pinID + " has been reserved"));
-            } else {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Failed to reserve slot. Slot may already be reserved or not available"));
-            }
-            
-        } catch (SQLException e) {
-            System.out.println("Database error in reserveSlot: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(ApiResponse.error("Database error occurred"));
-        } catch (Exception e) {
-            System.out.println("Unexpected error in reserveSlot: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
-        }
-    }
-    
     // API để update PinSlot theo pinID (Method 1: Request Parameters)
     @PutMapping("/pinSlot/updateSlot")
     @Operation(summary = "Update slot charging level", description = "Manually update the charging percentage (0-100%) of a specific pin slot.")
@@ -175,8 +135,8 @@ public class PinSlotController {
             
             if (success) {
                 String statusMessage = (pinPercent < 100) ? 
-                    " (Status: unvaliable)" : 
-                    " (Status: valiable)";
+                    " (Status: 0 - unvaliable)" : 
+                    " (Status: 1 - valiable)";
                     
                 return ResponseEntity.ok(
                     ApiResponse.success("Pin slot updated successfully", 

@@ -5,7 +5,7 @@ public class UserDTO {
     private String Name;
     private String Email;
     private String Password;
-    private int phone;
+    private long phone;
     private int roleID;
 
     public UserDTO() {
@@ -17,7 +17,7 @@ public class UserDTO {
         this.roleID = 0;
     }
 
-    public UserDTO(int userID, String Name, String Email, String Password, int phone, int roleID) {
+    public UserDTO(int userID, String Name, String Email, String Password, long phone, int roleID) {
         this.userID = userID;
         this.Name = Name;
         this.Email = Email;
@@ -58,11 +58,11 @@ public class UserDTO {
         this.Password = Password;
     }
 
-    public int getPhone() {
+    public long getPhone() {
         return phone;
     }
 
-    public void setPhone(int phone) {
+    public void setPhone(long phone) {
         this.phone = phone;
     }
 

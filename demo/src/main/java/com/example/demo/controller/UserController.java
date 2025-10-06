@@ -18,7 +18,6 @@ import com.example.demo.dto.UserDTO;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
 public class UserController {
     
     // API lấy danh sách driver
@@ -65,10 +64,43 @@ public class UserController {
             @RequestParam String Name,
             @RequestParam String Email,
             @RequestParam String Password,
-            @RequestParam int phone,
-            @RequestParam int roleID) {
+            @RequestParam String phone,
+            @RequestParam String roleID) {
         try {
             UserDAO dao = new UserDAO();
+            
+            // Validate và convert phone
+            long phoneInt;
+            try {
+                phoneInt = Long.parseLong(phone);
+                if (phoneInt <= 0) {
+                    return ResponseEntity.badRequest().body(ApiResponse.error("Phone number must be positive"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid phone number format"));
+            }
+            
+            // Validate và convert roleID
+            int roleIDInt;
+            try {
+                roleIDInt = Integer.parseInt(roleID);
+                if (roleIDInt <= 0) {
+                    return ResponseEntity.badRequest().body(ApiResponse.error("Role ID must be positive"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid role ID format"));
+            }
+            
+            // Validate basic fields
+            if (Name == null || Name.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Name cannot be empty"));
+            }
+            if (Email == null || Email.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Email cannot be empty"));
+            }
+            if (Password == null || Password.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Password cannot be empty"));
+            }
             
             // Kiểm tra email trùng
             if (dao.checkDuplicateEmail(Email)) {
@@ -76,11 +108,11 @@ public class UserController {
             }
             
             // Kiểm tra phone trùng
-            if (dao.checkDuplicatePhone(phone)) {
+            if (dao.checkDuplicatePhone(phoneInt)) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Phone number already exists"));
             }
 
-            UserDTO newUser = new UserDTO(0, Name, Email, Password, phone, roleID);
+            UserDTO newUser = new UserDTO(0, Name, Email, Password, phoneInt, roleIDInt);
 
             // Thêm user vào database
             boolean result = dao.create(newUser);
@@ -100,17 +132,61 @@ public class UserController {
     // API cập nhật thông tin user
     @PutMapping("/user/update")
     public ResponseEntity<ApiResponse<Object>> updateUser(
-            @RequestParam int userID,
+            @RequestParam String userID,
             @RequestParam String Name,
             @RequestParam String Email,
             @RequestParam String Password,
-            @RequestParam int phone,
-            @RequestParam int roleID) {
+            @RequestParam String phone,
+            @RequestParam String roleID) {
         try {
             UserDAO dao = new UserDAO();
             
+            // Validate và convert userID
+            int userIDInt;
+            try {
+                userIDInt = Integer.parseInt(userID);
+                if (userIDInt <= 0) {
+                    return ResponseEntity.badRequest().body(ApiResponse.error("User ID must be positive"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid user ID format"));
+            }
+            
+            // Validate và convert phone
+            int phoneInt;
+            try {
+                phoneInt = Integer.parseInt(phone);
+                if (phoneInt <= 0) {
+                    return ResponseEntity.badRequest().body(ApiResponse.error("Phone number must be positive"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid phone number format"));
+            }
+            
+            // Validate và convert roleID
+            int roleIDInt;
+            try {
+                roleIDInt = Integer.parseInt(roleID);
+                if (roleIDInt <= 0) {
+                    return ResponseEntity.badRequest().body(ApiResponse.error("Role ID must be positive"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid role ID format"));
+            }
+            
+            // Validate basic fields
+            if (Name == null || Name.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Name cannot be empty"));
+            }
+            if (Email == null || Email.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Email cannot be empty"));
+            }
+            if (Password == null || Password.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Password cannot be empty"));
+            }
+            
             // Tạo UserDTO với thông tin mới
-            UserDTO updateUser = new UserDTO(userID, Name, Email, Password, phone, roleID);
+            UserDTO updateUser = new UserDTO(userIDInt, Name, Email, Password, phoneInt, roleIDInt);
             
             // Cập nhật user trong database
             boolean result = dao.update(updateUser);
@@ -129,13 +205,24 @@ public class UserController {
     
     // API xóa user
     @DeleteMapping("/user/delete")
-    public ResponseEntity<ApiResponse<Object>> deleteUser(@RequestParam int userID) {
+    public ResponseEntity<ApiResponse<Object>> deleteUser(@RequestParam String userID) {
         try {
             UserDAO dao = new UserDAO();
             
+            // Validate và convert userID
+            int userIDInt;
+            try {
+                userIDInt = Integer.parseInt(userID);
+                if (userIDInt <= 0) {
+                    return ResponseEntity.badRequest().body(ApiResponse.error("User ID must be positive"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid user ID format"));
+            }
+            
             // Tạo UserDTO với userID để delete
             UserDTO deleteUser = new UserDTO();
-            deleteUser.setUserID(userID);
+            deleteUser.setUserID(userIDInt);
             
             // Xóa user khỏi database
             boolean result = dao.delete(deleteUser);

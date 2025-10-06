@@ -4,6 +4,9 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,8 +34,17 @@ public class SwaggerConfig {
                                 .url("http://localhost:" + serverPort)
                                 .description("Local Development Server"),
                         new Server()
+                                .url("https://19c18cd38a0d.ngrok-free.app")
+                                .description("Ngrok Tunnel Server"),
+                        new Server()
                                 .url("https://swp301-g9-project.onrender.com")
                                 .description("Production Server (Render)")
-                ));
+                ))
+                .components(new Components()
+                        .addSecuritySchemes("sessionAuth", new SecurityScheme()
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.COOKIE)
+                                .name("JSESSIONID")))
+                .addSecurityItem(new SecurityRequirement().addList("sessionAuth"));
     }
 }
