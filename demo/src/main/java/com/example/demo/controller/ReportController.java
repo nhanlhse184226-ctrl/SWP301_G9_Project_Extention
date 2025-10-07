@@ -244,4 +244,40 @@ public class ReportController {
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }
     }
+
+    /**
+     * GET /api/report/user/{userId} - Admin xem reports theo user ID
+     * Only for admins with roleID=1
+     */
+    @GetMapping("/report/user/{userId}")
+    @Operation(summary = "Get reports by user ID", 
+               description = "Admin views all reports from specific user (roleID=1 only). " +
+                           "Returns complete list of reports submitted by the specified user " +
+                           "including status, descriptions, and handler assignments. " +
+                           "Useful for admin to track user activity and support history.")
+    public ResponseEntity<ApiResponse<Object>> getReportsByUserId(
+            @Parameter(description = "Target user ID to get reports from", required = true, example = "123")
+            @PathVariable int userId,
+            @Parameter(description = "Admin ID from session", required = true, example = "456") 
+            @RequestParam int adminID) {
+        try {
+            ReportDAO dao = new ReportDAO();
+            
+            if (userId <= 0 || adminID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid user ID or admin ID"));
+            }
+            
+            List<ReportDTO> userReports = dao.getReportsByUserId(userId, adminID);
+            
+            if (userReports != null && !userReports.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success("Retrieved user reports successfully", userReports));
+            } else {
+                return ResponseEntity.ok(ApiResponse.success("User has no reports", userReports));
+            }
+            
+        } catch (Exception e) {
+            System.out.println("Error at ReportController - getReportsByUserId: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
+        }
+    }
 }

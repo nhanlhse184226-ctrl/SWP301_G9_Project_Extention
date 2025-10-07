@@ -225,6 +225,23 @@ public class ReportDAO {
         return getReportsList(GET_REPORTS_BY_REPORTER, reporterId);
     }
 
+    /**
+     * Get reports by user ID (for admin to view any user's reports)
+     */
+    public List<ReportDTO> getReportsByUserId(int userId, int adminId) throws SQLException {
+        // Verify that adminId is an admin (roleID = 1)
+        if (!isUserRole(adminId, 1)) {
+            throw new SQLException("Access denied. Only admins can view reports by user ID.");
+        }
+
+        // Verify that the userId exists and is a user (roleID = 3)
+        if (!isUserRole(userId, 3)) {
+            throw new SQLException("Invalid user ID or user not found");
+        }
+
+        return getReportsList(GET_REPORTS_BY_REPORTER, userId);
+    }
+
     // Helper method to execute SELECT queries and return list of reports
     private List<ReportDTO> getReportsList(String query, Integer parameter) throws SQLException {
         List<ReportDTO> reports = new ArrayList<>();
