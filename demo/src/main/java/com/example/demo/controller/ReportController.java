@@ -21,8 +21,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * Report Controller for handling report-related operations
- * - roleID=3 (User): Can create reports and view their own reports
- * - roleID=1 (Admin): Can view all reports, update status, handle reports
+ * - roleID=1 (User): Can create reports and view their own reports
+ * - roleID=3 (Admin): Can view all reports, update status, handle reports
  * - roleID=2 (Staff): No access to reports system
  */
 @RestController
@@ -33,12 +33,12 @@ public class ReportController {
     /**
      * POST /api/report/create - User tạo report
      * userID được gửi tự động từ FE session, user không nhập
-     * Only users with roleID=3 can create reports
+     * Only users with roleID=1 can create reports
      */
     @PostMapping("/report/create")
     @Operation(summary = "Create new report", 
                description = "User creates a new report about station/slot/battery issues. " +
-                           "UserID is automatically taken from frontend session (only roleID=3). " +
+                           "UserID is automatically taken from frontend session (only roleID=1). " +
                            "User selects issue type and provides detailed description (no character limit). " +
                            "System automatically sets status=0 (Pending) and created_at=now.")
     public ResponseEntity<ApiResponse<Object>> createReport(
@@ -54,7 +54,7 @@ public class ReportController {
         try {
             ReportDAO dao = new ReportDAO();
             
-            // Validate userID exists and has correct role (roleID=3)
+            // Validate userID exists and has correct role (roleID=1)
             if (userID <= 0) {
                 return ResponseEntity.badRequest().body(
                     ApiResponse.error("Invalid user ID from session"));
@@ -90,11 +90,11 @@ public class ReportController {
 
     /**
      * GET /api/report/all - Admin xem tất cả reports
-     * Only admins with roleID=1 can access
+     * Only admins with roleID=3 can access
      */
     @GetMapping("/report/all")
     @Operation(summary = "Get all reports", 
-               description = "Admin views all reports in the system (roleID=1 only). " +
+               description = "Admin views all reports in the system (roleID=3 only). " +
                            "Returns complete list of reports with all details including " +
                            "reporter info, handler info, status, type, and timestamps. " +
                            "Used for admin dashboard and system overview.")
@@ -124,7 +124,7 @@ public class ReportController {
 
     /**
      * GET /api/report/pending - Admin xem pending reports
-     * Only admins with roleID=1 can access
+     * Only admins with roleID=3 can access
      */
     @GetMapping("/report/pending")
     @Operation(summary = "Get pending reports", 
@@ -162,7 +162,7 @@ public class ReportController {
 
     /**
      * PUT /api/report/{reportId}/status - Admin update status
-     * Only admins with roleID=1 can update report status
+     * Only admins with roleID=3 can update report status
      * Admin automatically becomes the handler when changing status from Pending
      */
     @PutMapping("/report/{reportId}/status")
@@ -212,11 +212,11 @@ public class ReportController {
 
     /**
      * GET /api/report/my-reports - User xem reports của mình
-     * Only for users with roleID=3
+     * Only for users with roleID=1
      */
     @GetMapping("/report/my-reports")
     @Operation(summary = "Get my reports", 
-               description = "User views their own submitted reports (roleID=3 only). " +
+               description = "User views their own submitted reports (roleID=1 only). " +
                            "Shows all reports created by the current user with current status, " +
                            "handler information (if assigned), and resolution progress. " +
                            "Users can track the status of their submitted issues. " +
@@ -247,11 +247,11 @@ public class ReportController {
 
     /**
      * GET /api/report/user/{userId} - Admin xem reports theo user ID
-     * Only for admins with roleID=1
+     * Only for admins with roleID=3
      */
     @GetMapping("/report/user/{userId}")
     @Operation(summary = "Get reports by user ID", 
-               description = "Admin views all reports from specific user (roleID=1 only). " +
+               description = "Admin views all reports from specific user (roleID=3 only). " +
                            "Returns complete list of reports submitted by the specified user " +
                            "including status, descriptions, and handler assignments. " +
                            "Useful for admin to track user activity and support history.")

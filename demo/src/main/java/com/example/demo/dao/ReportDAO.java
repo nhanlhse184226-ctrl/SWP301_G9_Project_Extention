@@ -42,7 +42,7 @@ public class ReportDAO {
 
     /**
      * Create a new report
-     * Only users with roleID = 3 can create reports
+     * Only users with roleID = 1 can create reports
      */
     public boolean createReport(ReportDTO report) throws SQLException {
         // Validate input
@@ -50,9 +50,9 @@ public class ReportDAO {
             throw new SQLException("Invalid report data");
         }
 
-        // Check if reporter has correct role (roleID = 3)
-        if (!isUserRole(report.getReporterId(), 3)) {
-            throw new SQLException("Only users with roleID = 3 can create reports");
+        // Check if reporter has correct role (roleID = 1)
+        if (!isUserRole(report.getReporterId(), 1)) {
+            throw new SQLException("Only users with roleID = 1 can create reports");
         }
 
         boolean result = false;
@@ -88,11 +88,11 @@ public class ReportDAO {
     }
 
     /**
-     * Get all reports - Only admins (roleID = 1) can access
+     * Get all reports - Only admins (roleID = 3) can access
      */
     public List<ReportDTO> getAllReports(int adminId) throws SQLException {
         // Check if user is admin
-        if (!isUserRole(adminId, 1)) {
+        if (!isUserRole(adminId, 3)) {
             throw new SQLException("Only admins can view all reports");
         }
 
@@ -100,11 +100,11 @@ public class ReportDAO {
     }
 
     /**
-     * Get pending reports - Only admins (roleID = 1) can access
+     * Get pending reports - Only admins (roleID = 3) can access
      */
     public List<ReportDTO> getPendingReports(int adminId) throws SQLException {
         // Check if user is admin
-        if (!isUserRole(adminId, 1)) {
+        if (!isUserRole(adminId, 3)) {
             throw new SQLException("Only admins can view pending reports");
         }
 
@@ -112,11 +112,11 @@ public class ReportDAO {
     }
 
     /**
-     * Get reports by status - Only admins (roleID = 1) can access
+     * Get reports by status - Only admins (roleID = 3) can access
      */
     public List<ReportDTO> getReportsByStatus(int adminId, int status) throws SQLException {
         // Check if user is admin
-        if (!isUserRole(adminId, 1)) {
+        if (!isUserRole(adminId, 3)) {
             throw new SQLException("Only admins can filter reports by status");
         }
 
@@ -149,7 +149,7 @@ public class ReportDAO {
                     
                     // Check permission: admin can view all, user can only view their own
                     int userRole = getUserRole(userId);
-                    if (userRole != 1 && report.getReporterId() != userId) {
+                    if (userRole != 3 && report.getReporterId() != userId) {
                         throw new SQLException("Access denied: You can only view your own reports");
                     }
                 }
@@ -167,11 +167,11 @@ public class ReportDAO {
     }
 
     /**
-     * Update report status - Only admins (roleID = 1) can update
+     * Update report status - Only admins (roleID = 3) can update
      */
     public boolean updateReportStatus(int reportId, int newStatus, int adminId) throws SQLException {
         // Check if user is admin
-        if (!isUserRole(adminId, 1)) {
+        if (!isUserRole(adminId, 3)) {
             throw new SQLException("Only admins can update report status");
         }
 
@@ -217,8 +217,8 @@ public class ReportDAO {
      * Get reports by reporter (for users to view their own reports)
      */
     public List<ReportDTO> getReportsByReporter(int reporterId) throws SQLException {
-        // Verify that the reporterId corresponds to a user (roleID = 3)
-        if (!isUserRole(reporterId, 3)) {
+        // Verify that the reporterId corresponds to a user (roleID = 1)
+        if (!isUserRole(reporterId, 1)) {
             throw new SQLException("Invalid reporter ID");
         }
 
@@ -229,13 +229,13 @@ public class ReportDAO {
      * Get reports by user ID (for admin to view any user's reports)
      */
     public List<ReportDTO> getReportsByUserId(int userId, int adminId) throws SQLException {
-        // Verify that adminId is an admin (roleID = 1)
-        if (!isUserRole(adminId, 1)) {
+        // Verify that adminId is an admin (roleID = 3)
+        if (!isUserRole(adminId, 3)) {
             throw new SQLException("Access denied. Only admins can view reports by user ID.");
         }
 
-        // Verify that the userId exists and is a user (roleID = 3)
-        if (!isUserRole(userId, 3)) {
+        // Verify that the userId exists and is a user (roleID = 1)
+        if (!isUserRole(userId, 1)) {
             throw new SQLException("Invalid user ID or user not found");
         }
 
