@@ -36,6 +36,15 @@ public class ReportDAO {
     private static final String GET_REPORTS_BY_REPORTER = 
         "SELECT * FROM reports WHERE reporter_id = ? ORDER BY created_at DESC";
 
+    private static final String GET_REPORTS_BY_HANDLER = 
+        "SELECT * FROM reports WHERE handler_id = ? ORDER BY created_at DESC";
+        
+    private static final String ASSIGN_REPORT_TO_STAFF = 
+        "UPDATE reports SET handler_id = ? WHERE id = ?";
+        
+    private static final String CHECK_REPORT_ASSIGNMENT = 
+        "SELECT handler_id FROM reports WHERE id = ? AND handler_id = ?";
+
     // Check if user has admin role (roleID = 1)
     private static final String CHECK_USER_ROLE = 
         "SELECT roleID FROM users WHERE userID = ?";
@@ -322,5 +331,162 @@ public class ReportDAO {
         }
         
         return roleID;
+    }
+
+    /**
+     * Assign report to staff - Only admins (roleID = 3) can assign
+     */
+    public boolean assignReportToStaff(int reportId, int staffId, int adminId) throws SQLException {
+        // Check if user is admin
+        if (!isUserRole(adminId, 3)) {
+            throw new SQLException("Only admins can assign reports to staff");
+        }
+
+        // Check if staffId is actually a staff member (roleID = 2)
+        if (!isUserRole(staffId, 2)) {
+            throw new SQLException("Invalid staff ID - user is not a staff member");
+        }
+
+        boolean result = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(ASSIGN_REPORT_TO_STAFF);
+                ptm.setInt(1, staffId);
+                ptm.setInt(2, reportId);
+                
+                result = ptm.executeUpdate() > 0;
+                
+                System.out.println("Report " + reportId + " assigned to staff " + staffId + 
+                                 " by admin " + adminId);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error assigning report: " + e.getMessage());
+        } finally {
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        
+        return result;
+    }
+
+    /**
+     * Get reports assigned to specific staff - Only for staff (roleID = 2) and admins (roleID = 3)
+     */
+    public List<ReportDTO> getReportsByHandler(int handlerId, int requesterId) throws SQLException {
+        int requesterRole = getUserRole(requesterId);
+        
+        // Admin can view any handler's reports, Staff can only view their own assigned reports
+        if (requesterRole == 3) {
+            // Admin requesting - can view any handler's reports
+            return getReportsList(GET_REPORTS_BY_HANDLER, handlerId);
+        } else if (requesterRole == 2 && handlerId == requesterId) {
+            // Staff requesting their own assigned reports
+            return getReportsList(GET_REPORTS_BY_HANDLER, handlerId);
+        } else {
+            throw new SQLException("Access denied. Staff can only view their own assigned reports.");
+        }
+    }
+
+    /**
+     * Update report status - Updated to support both Admin and Staff
+     * Admin can update any report, Staff can only update assigned reports
+     */
+    public boolean updateReportStatusV2(int reportId, int newStatus, int userId) throws SQLException {
+        int userRole = getUserRole(userId);
+        
+        if (newStatus < 0 || newStatus > 2) {
+            throw new SQLException("Invalid status value");
+        }
+        
+        if (userRole == 3) {
+            // Admin can update any report
+            return updateReportStatusInternal(reportId, newStatus, userId, true);
+        } else if (userRole == 2) {
+            // Staff can only update reports assigned to them
+            if (!isReportAssignedToUser(reportId, userId)) {
+                throw new SQLException("You can only update status of reports assigned to you");
+            }
+            return updateReportStatusInternal(reportId, newStatus, userId, false);
+        } else {
+            throw new SQLException("Only admins and staff can update report status");
+        }
+    }
+
+    /**
+     * Internal method to update report status
+     */
+    private boolean updateReportStatusInternal(int reportId, int newStatus, int userId, boolean isAdmin) throws SQLException {
+        boolean result = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                if (isAdmin) {
+                    // Admin can change handler when updating status
+                    ptm = conn.prepareStatement(UPDATE_REPORT_STATUS);
+                    ptm.setInt(1, newStatus);
+                    ptm.setInt(2, userId); // Admin becomes handler if changing from pending
+                    ptm.setInt(3, reportId);
+                } else {
+                    // Staff only updates status, keeps current handler
+                    ptm = conn.prepareStatement("UPDATE reports SET status = ? WHERE id = ? AND handler_id = ?");
+                    ptm.setInt(1, newStatus);
+                    ptm.setInt(2, reportId);
+                    ptm.setInt(3, userId);
+                }
+                
+                result = ptm.executeUpdate() > 0;
+                
+                String role = isAdmin ? "admin" : "staff";
+                System.out.println("Report " + reportId + " status updated to " + newStatus + 
+                                 " by " + role + " " + userId);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error updating report status: " + e.getMessage());
+        } finally {
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        
+        return result;
+    }
+
+    /**
+     * Check if a report is assigned to a specific user
+     */
+    private boolean isReportAssignedToUser(int reportId, int userId) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        boolean isAssigned = false;
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(CHECK_REPORT_ASSIGNMENT);
+                ptm.setInt(1, reportId);
+                ptm.setInt(2, userId);
+                rs = ptm.executeQuery();
+                
+                isAssigned = rs.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error checking report assignment: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        
+        return isAssigned;
     }
 }
