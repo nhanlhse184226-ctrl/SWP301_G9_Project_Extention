@@ -22,14 +22,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 /**
  * Report Controller for handling report-related operations
  * - roleID=1 (User): Can create reports and view their own reports
- * - roleID=2 (Staff): Can view assigned reports and update status of assigned reports
- * - roleID=3 (Admin): Can view all reports, assign reports to staff, update any report status
+ * - roleID=3 (Admin): Can view all reports, update any report status
+ * - roleID=2 (Staff): No access to reports system
  * 
  * Workflow:
  * 1. User creates report (status=Pending)
- * 2. Admin assigns report to Staff
- * 3. Staff updates report status (InProgress -> Resolved)
- * 4. Admin can reassign or override any status
+ * 2. Admin handles and updates report status (Pending -> InProgress -> Resolved)
  */
 @RestController
 @RequestMapping("/api")
@@ -167,24 +165,23 @@ public class ReportController {
 
 
     /**
-     * PUT /api/report/{reportId}/status - Enhanced status update for both Admin and Staff
-     * Admin (roleID=3): Can update any report status
-     * Staff (roleID=2): Can update status of assigned reports only
+     * PUT /api/report/{reportId}/status - Admin update report status
+     * Only admins (roleID=3) can update report status
      */
     @PutMapping("/report/{reportId}/status")
     @Operation(summary = "Update report status", 
-               description = "Enhanced status update supporting both Admin and Staff workflows. " +
-                           "Admin (roleID=3) can update any report status and change handler assignment. " +
-                           "Staff (roleID=2) can only update status of reports assigned to them. " +
-                           "Status flow: 0(Pending) → 1(InProgress) → 2(Resolved). " +
-                           "Supports role-based access control for better workflow management.")
+               description = "Admin updates report status and automatically becomes the handler (roleID=3 only). " +
+                           "Status transitions: 0(Pending) → 1(InProgress) → 2(Resolved). " +
+                           "When admin updates status from Pending, they are automatically assigned as handler. " +
+                           "This tracks who is responsible for resolving each issue. " +
+                           "Use status=1 when starting work, status=2 when issue is resolved.")
     public ResponseEntity<ApiResponse<Object>> updateReportStatus(
             @Parameter(description = "Report ID to update", required = true, example = "1")
             @PathVariable int reportId,
             @Parameter(description = "New status: 0=Pending, 1=InProgress, 2=Resolved", required = true, example = "2")
             @RequestParam int status,
-            @Parameter(description = "User ID from session (Admin or Staff)", required = true, example = "456")
-            @RequestParam int userID) {
+            @Parameter(description = "Admin user ID from session", required = true, example = "456")
+            @RequestParam int adminID) {
         try {
             ReportDAO dao = new ReportDAO();
             
@@ -192,8 +189,8 @@ public class ReportController {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Invalid report ID"));
             }
             
-            if (userID <= 0) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid user ID"));
+            if (adminID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid admin ID"));
             }
             
             if (status < 0 || status > 2) {
@@ -201,7 +198,7 @@ public class ReportController {
                     ApiResponse.error("Invalid status. Must be 0=Pending, 1=InProgress, 2=Resolved"));
             }
             
-            boolean result = dao.updateReportStatusV2(reportId, status, userID);
+            boolean result = dao.updateReportStatus(reportId, status, adminID);
             
             if (result) {
                 String statusName = (status == 0) ? "Pending" : (status == 1) ? "InProgress" : "Resolved";
@@ -283,78 +280,6 @@ public class ReportController {
             
         } catch (Exception e) {
             System.out.println("Error at ReportController - getReportsByUserId: " + e.toString());
-            return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * PUT /api/report/{reportId}/assign - Admin assign report to staff
-     * Only for admins with roleID=3
-     */
-    @PutMapping("/report/{reportId}/assign")
-    @Operation(summary = "Assign report to staff", 
-               description = "Admin assigns a report to a staff member for handling (roleID=3 only). " +
-                           "Admin selects which staff member will be responsible for resolving the issue. " +
-                           "Once assigned, the staff member can update the report status. " +
-                           "Used for distributing workload among staff members.")
-    public ResponseEntity<ApiResponse<Object>> assignReportToStaff(
-            @Parameter(description = "Report ID to assign", required = true, example = "1")
-            @PathVariable int reportId,
-            @Parameter(description = "Staff user ID to assign report to", required = true, example = "789")
-            @RequestParam int staffID,
-            @Parameter(description = "Admin user ID from session", required = true, example = "456")
-            @RequestParam int adminID) {
-        try {
-            ReportDAO dao = new ReportDAO();
-            
-            if (reportId <= 0 || staffID <= 0 || adminID <= 0) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid report ID, staff ID, or admin ID"));
-            }
-            
-            boolean result = dao.assignReportToStaff(reportId, staffID, adminID);
-            
-            if (result) {
-                return ResponseEntity.ok(ApiResponse.success("Report assigned to staff successfully", null));
-            } else {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Failed to assign report or report not found"));
-            }
-            
-        } catch (Exception e) {
-            System.out.println("Error at ReportController - assignReportToStaff: " + e.toString());
-            return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * GET /api/report/assigned - Staff view assigned reports
-     * Only for staff with roleID=2
-     */
-    @GetMapping("/report/assigned")
-    @Operation(summary = "Get assigned reports", 
-               description = "Staff views reports assigned to them for handling (roleID=2 only). " +
-                           "Shows reports that admin has assigned to this staff member. " +
-                           "Staff can update status of these reports from InProgress to Resolved. " +
-                           "Ordered by creation time (oldest first for priority handling).")
-    public ResponseEntity<ApiResponse<Object>> getAssignedReports(
-            @Parameter(description = "Staff user ID from session", required = true, example = "789")
-            @RequestParam int staffID) {
-        try {
-            ReportDAO dao = new ReportDAO();
-            
-            if (staffID <= 0) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid staff ID"));
-            }
-            
-            List<ReportDTO> assignedReports = dao.getReportsByHandler(staffID, staffID);
-            
-            if (assignedReports != null && !assignedReports.isEmpty()) {
-                return ResponseEntity.ok(ApiResponse.success("Retrieved assigned reports successfully", assignedReports));
-            } else {
-                return ResponseEntity.ok(ApiResponse.success("No reports assigned to you", assignedReports));
-            }
-            
-        } catch (Exception e) {
-            System.out.println("Error at ReportController - getAssignedReports: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }
     }
