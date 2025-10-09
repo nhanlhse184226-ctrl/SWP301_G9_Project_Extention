@@ -12,7 +12,7 @@ import com.example.demo.dto.PinSlotDTO;
 
 public class PinSlotDAO {
     private static final String UPDATE = "EXEC dbo.UpdatePinPercent";
-    private static final String LIST_PIN = "SELECT pinID, pinPercent, pinStatus, status, stationID FROM pinSlot";
+    private static final String LIST_PIN = "SELECT pinID, pinPercent, pinStatus, status, userID, stationID FROM pinSlot";
 
     // Thêm method declaration
     public boolean updatePinPercent() throws SQLException {
@@ -25,13 +25,8 @@ public class PinSlotDAO {
             if (conn != null) {
                 ptm = conn.prepareStatement(UPDATE);
                 int rowsAffected = ptm.executeUpdate();
-
-                // Log để debug
                 System.out.println("UpdatePinPercent executed - Rows affected: " + rowsAffected);
-
-                // Procedure chạy thành công dù có 0 rows affected
-                // Vì có thể không có record nào có pinStatus = 0 (unvaliable)
-                check = true; // ← Luôn return true nếu procedure execute thành công
+                check = true;
             }
         } catch (Exception e) {
             System.out.println("Error executing UpdatePinPercent: " + e.getMessage());
@@ -65,12 +60,13 @@ public class PinSlotDAO {
                     int pinStatus = rs.getInt("pinStatus");
                     int status = rs.getInt("status");
 
-                    // Đọc stationID từ database
-                    Integer stationID = rs.getObject("stationID", Integer.class);
+                    // Đọc userID và stationID từ database
+                    Integer userID = rs.getObject("userID", Integer.class);
+                    int stationID = rs.getInt("stationID");
 
-                    // Sử dụng constructor với 5 fields
+                    // Sử dụng constructor với 6 fields
                     listPinSlot
-                            .add(new PinSlotDTO(pinID, pinPercent, pinStatus, status, stationID));
+                            .add(new PinSlotDTO(pinID, pinPercent, pinStatus, status, userID, stationID));
                 }
             }
         } catch (Exception e) {
@@ -97,7 +93,7 @@ public class PinSlotDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT pinID, pinPercent, pinStatus, status, stationID FROM dbo.pinSlot WHERE stationID = ?";
+        String sql = "SELECT pinID, pinPercent, pinStatus, status, userID, stationID FROM dbo.pinSlot WHERE stationID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -112,12 +108,13 @@ public class PinSlotDAO {
                     int pinStatus = rs.getInt("pinStatus");
                     int status = rs.getInt("status");
 
-                    // Đọc stationID từ database
-                    Integer stationIDFromDB = rs.getObject("stationID", Integer.class);
+                    // Đọc userID và stationID từ database
+                    Integer userID = rs.getObject("userID", Integer.class);
+                    int stationIDFromDB = rs.getInt("stationID");
 
-                    // Sử dụng constructor với 5 fields
+                    // Sử dụng constructor với 6 fields
                     listPinSlot.add(
-                            new PinSlotDTO(pinID, pinPercent, pinStatus, status, stationIDFromDB));
+                            new PinSlotDTO(pinID, pinPercent, pinStatus, status, userID, stationIDFromDB));
                 }
             }
         } catch (Exception e) {
@@ -143,10 +140,7 @@ public class PinSlotDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        // Logic: Update pin và set status theo giá trị pin
-        // Pin < 100% → status = 0 (unvaliable)
-        // Pin = 100% → status = 1 (valiable)
-        String sql = "UPDATE dbo.pinSlot SET pinPercent = ?, status = ? WHERE pinID = ?";
+        String sql = "UPDATE dbo.pinSlot SET pinPercent = ? WHERE pinID = ?";
         int newStatus = (pinPercent < 100) ? 0 : 1;
 
         try {
@@ -154,8 +148,7 @@ public class PinSlotDAO {
             if (conn != null) {
                 ptm = conn.prepareStatement(sql);
                 ptm.setInt(1, pinPercent);
-                ptm.setInt(2, newStatus);
-                ptm.setInt(3, pinID);
+                ptm.setInt(2, pinID);
 
                 int rowsAffected = ptm.executeUpdate();
                 success = (rowsAffected > 0);
@@ -163,15 +156,9 @@ public class PinSlotDAO {
                 System.out.println("Update PinSlot - PinID: " + pinID + ", NewPercent: " + pinPercent + "%, Status: "
                         + newStatus + ", Rows affected: " + rowsAffected);
             }
-        } catch (ClassNotFoundException e) {
-            System.out.println("Database driver not found: " + e.getMessage());
-            throw new SQLException("Database driver not found: " + e.getMessage());
-        } catch (SQLException e) {
-            System.out.println("Database error in updatePinSlot: " + e.getMessage());
-            throw e;
         } catch (Exception e) {
-            System.out.println("Unexpected error in updatePinSlot: " + e.getMessage());
-            throw new SQLException("Failed to update pin slot: " + e.getMessage());
+            System.out.println("Error updating pin slot: " + e.getMessage());
+            throw new SQLException("Error updating pin slot: " + e.getMessage());
         } finally {
             if (ptm != null) {
                 ptm.close();
@@ -183,4 +170,121 @@ public class PinSlotDAO {
 
         return success;
     }
+
+    public boolean updatePinSlotStatus(int pinID, int status) throws SQLException {
+        boolean check = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        String sql = "UPDATE dbo.pinSlot SET status = ? WHERE pinID = ?";
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, status);
+                ptm.setInt(2, pinID);
+
+                check = ptm.executeUpdate() > 0 ? true : false;
+            }
+        } catch (Exception e) {
+            System.out.println("Error updating pin slot status: " + e.getMessage());
+            throw new SQLException("Error updating pin slot status: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return check;
+    }
+
+    public boolean reservePinSlot(int pinID, Integer userID) throws SQLException {
+        boolean check = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        String reserve = "UPDATE dbo.pinSlot SET status = 2, userID = ? WHERE pinID = ?";
+        String checkStatus = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                // Kiểm tra trạng thái hiện tại
+                ptm = conn.prepareStatement(checkStatus);
+                ptm.setInt(1, pinID);
+                ResultSet rs = ptm.executeQuery();
+                if (rs.next()) {
+                    int status = rs.getInt("status");
+                    int pinStatus = rs.getInt("pinStatus");
+                    // Chỉ cho phép đặt chỗ nếu trạng thái hiện tại là 0 (available) và pinStatus là 1 (fully charged)
+                    if (status == 0 && pinStatus == 1) {
+                        ptm.close(); // Đóng PreparedStatement cũ trước khi tái sử dụng
+                        ptm = conn.prepareStatement(reserve);
+                        ptm.setInt(1, userID);
+                        ptm.setInt(2, pinID);
+                        check = ptm.executeUpdate() > 0 ? true : false;
+                    } else {
+                        System.out.println("Pin slot cannot be reserved. Current status: " + status + ", Pin status: " + pinStatus);
+                    }
+                } else {
+                    System.out.println("Pin slot with ID " + pinID + " does not exist.");
+                }
+                rs.close();
+            }
+        } catch (Exception e) {
+            System.out.println("Error reserving pin slot: " + e.getMessage());
+            throw new SQLException("Error reserving pin slot: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return check;
+    }
+
+    public boolean unreservePinSlot(int pinID) throws SQLException {
+        boolean check = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        String unreserve = "UPDATE dbo.pinSlot SET status = 0, userID = NULL WHERE pinID = ?";
+        String checkStatus = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                // Kiểm tra trạng thái hiện tại
+                ptm = conn.prepareStatement(checkStatus);
+                ptm.setInt(1, pinID);
+                ResultSet rs = ptm.executeQuery();
+                if (rs.next()) {
+                    int status = rs.getInt("status");
+                    // Chỉ cho phép unreserve nếu trạng thái hiện tại là 2 (reserved)
+                    if (status == 2) {
+                        ptm.close(); // Đóng PreparedStatement cũ trước khi tái sử dụng
+                        ptm = conn.prepareStatement(unreserve);
+                        ptm.setInt(1, pinID);
+                        check = ptm.executeUpdate() > 0;
+                    } else {
+                        System.out.println("Pin slot cannot be unreserved. Current status: " + status + " (must be 2 to unreserve)");
+                    }
+                } else {
+                    System.out.println("Pin slot with ID " + pinID + " does not exist.");
+                }
+                rs.close();
+            }
+        } catch (Exception e) {
+            System.out.println("Error unreserving pin slot: " + e.getMessage());
+            throw new SQLException("Error unreserving pin slot: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return check;
+    }
+
 }

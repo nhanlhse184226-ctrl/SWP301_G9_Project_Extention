@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import com.example.demo.dao.UserDAO;
 import com.example.demo.dto.UserDTO;
 import com.example.demo.dto.ApiResponse;
-import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**

@@ -4,8 +4,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -206,10 +205,10 @@ public class PinStationController {
     }
     
     // API để đảo ngược status của pinStation và pinSlot
-    @GetMapping("/pinStation/updateStat")
+    @GetMapping("/pinStation/updateStatus")
     @Operation(summary = "Toggle station status", description = "Toggle the status of a charging station and all its associated pin slots between active and inactive.")
     public ResponseEntity<ApiResponse<Object>> togglePinStationStatus(
-            @Parameter(description = "Station ID to toggle status", required = true) @RequestParam int stationID) {
+            @Parameter(description = "Station ID to toggle status with 0 is active and 1N is inactive", required = true) @RequestParam int stationID) {
         try {
             // Đảo ngược status của pinStation và tất cả pinSlot
             boolean result = pinStationDAO.updateStatus(stationID);
