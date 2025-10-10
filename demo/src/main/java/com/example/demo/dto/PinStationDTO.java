@@ -8,14 +8,15 @@ public class PinStationDTO {
     private String location;
     private int status;
     private Date createAt;
-    private int x;
-    private int y;
+    private float x;
+    private float y;
+    private Integer userID;  // Nullable for station owner/manager
     
     // Default constructor
     public PinStationDTO() {}
     
     // Constructor with parameters
-    public PinStationDTO(int stationID, String stationName, String location, int status, Date createAt, int x, int y) {
+    public PinStationDTO(int stationID, String stationName, String location, int status, Date createAt, float x, float y, Integer userID) {
         this.stationID = stationID;
         this.stationName = stationName;
         this.location = location;
@@ -23,15 +24,17 @@ public class PinStationDTO {
         this.createAt = createAt;
         this.x = x;
         this.y = y;
+        this.userID = userID;
     }
     
     // Constructor for creating new station (without ID and createAt)
-    public PinStationDTO(String stationName, String location, int status, int x, int y) {
+    public PinStationDTO(String stationName, String location, int status, float x, float y, Integer userID) {
         this.stationName = stationName;
         this.location = location;
         this.status = status;
         this.x = x;
         this.y = y;
+        this.userID = userID;
     }
     
     // Getters and Setters
@@ -50,11 +53,14 @@ public class PinStationDTO {
     public Date getCreateAt() { return createAt; }
     public void setCreateAt(Date createAt) { this.createAt = createAt; }
     
-    public int getX() { return x; }
-    public void setX(int x) { this.x = x; }
+    public float getX() { return x; }
+    public void setX(float x) { this.x = x; }
     
-    public int getY() { return y; }
-    public void setY(int y) { this.y = y; }
+    public float getY() { return y; }
+    public void setY(float y) { this.y = y; }
+    
+    public Integer getUserID() { return userID; }
+    public void setUserID(Integer userID) { this.userID = userID; }
     
     @Override
     public String toString() {
@@ -66,6 +72,7 @@ public class PinStationDTO {
                 ", createAt=" + createAt +
                 ", x=" + x +
                 ", y=" + y +
+                ", userID=" + userID +
                 '}';
     }
 }

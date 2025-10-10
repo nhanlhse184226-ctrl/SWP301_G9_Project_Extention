@@ -142,19 +142,14 @@ public class RatingDAO {
     // Method để lấy danh sách ratings theo stationID
     public List<RatingDTO> getRatingsByStation(int stationID) throws SQLException {
         List<RatingDTO> ratings = new ArrayList<>();
-        Connection conn = null;
-        PreparedStatement ptm = null;
-        ResultSet rs = null;
-        
         String sql = "SELECT ratingID, stationID, userID, rating, createAt FROM dbo.rating WHERE stationID = ? ORDER BY createAt DESC";
         
-        try {
-            conn = DBUtils.getConnection();
-            if (conn != null) {
-                ptm = conn.prepareStatement(sql);
-                ptm.setInt(1, stationID);
-                rs = ptm.executeQuery();
-                
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement ptm = conn.prepareStatement(sql)) {
+            
+            ptm.setInt(1, stationID);
+            
+            try (ResultSet rs = ptm.executeQuery()) {
                 while (rs.next()) {
                     RatingDTO rating = new RatingDTO(
                         rs.getInt("ratingID"),
@@ -177,16 +172,6 @@ public class RatingDAO {
         } catch (Exception e) {
             System.out.println("Unexpected error in getRatingsByStation: " + e.getMessage());
             throw new SQLException("Failed to get ratings: " + e.getMessage());
-        } finally {
-            if (rs != null) {
-                rs.close();
-            }
-            if (ptm != null) {
-                ptm.close();
-            }
-            if (conn != null) {
-                conn.close();
-            }
         }
         
         return ratings;

@@ -7,6 +7,7 @@ public class UserDTO {
     private String Password;
     private long phone;
     private int roleID;
+    private int status;  // 0: inactive, 1: active
 
     public UserDTO() {
         this.userID = 0;
@@ -15,15 +16,17 @@ public class UserDTO {
         this.Password = "";
         this.phone = 0;
         this.roleID = 0;
+        this.status = 1;  // Default to active
     }
 
-    public UserDTO(int userID, String Name, String Email, String Password, long phone, int roleID) {
+    public UserDTO(int userID, String Name, String Email, String Password, long phone, int roleID, int status) {
         this.userID = userID;
         this.Name = Name;
         this.Email = Email;
         this.Password = Password;
         this.phone = phone;
         this.roleID = roleID;
+        this.status = status;
     }
 
     public int getUserID() {
@@ -72,5 +75,13 @@ public class UserDTO {
 
     public void setRoleID(int roleID) {
         this.roleID = roleID;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public void setStatus(int status) {
+        this.status = status;
     }
 }

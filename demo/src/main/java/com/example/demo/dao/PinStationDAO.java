@@ -46,7 +46,7 @@ public class PinStationDAO {
     }
 
     // Method để tạo PinStation mới (trigger sẽ tự động tạo 15 pin slots)
-    public boolean createPinStation(String stationName, String location, int status, int x, int y) throws SQLException {
+    public boolean createPinStation(String stationName, String location, int status, float x, float y, Integer userID) throws SQLException {
         // Enhanced validation
         if (stationName == null || stationName.trim().isEmpty()) {
             throw new SQLException("Station name cannot be null or empty");
@@ -67,7 +67,7 @@ public class PinStationDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        String sql = "INSERT INTO dbo.pinStation (stationName, location, status, x, y, createAt) VALUES (?, ?, ?, ?, ?, GETDATE())";
+        String sql = "INSERT INTO dbo.pinStation (stationName, location, status, x, y, userID, createAt) VALUES (?, ?, ?, ?, ?, ?, GETDATE())";
 
         try {
             conn = DBUtils.getConnection();
@@ -76,8 +76,13 @@ public class PinStationDAO {
                 ptm.setString(1, stationName.trim());
                 ptm.setString(2, location.trim());
                 ptm.setInt(3, status);
-                ptm.setInt(4, x);
-                ptm.setInt(5, y);
+                ptm.setFloat(4, x);
+                ptm.setFloat(5, y);
+                if (userID != null) {
+                    ptm.setInt(6, userID);
+                } else {
+                    ptm.setNull(6, java.sql.Types.INTEGER);
+                }
 
                 int rowsAffected = ptm.executeUpdate();
                 success = (rowsAffected > 0);
@@ -113,7 +118,7 @@ public class PinStationDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT stationID, stationName, location, status, x, y, createAt FROM dbo.pinStation ORDER BY createAt DESC";
+        String sql = "SELECT stationID, stationName, location, status, x, y, userID, createAt FROM dbo.pinStation ORDER BY createAt DESC";
 
         try {
             conn = DBUtils.getConnection();
@@ -128,8 +133,9 @@ public class PinStationDAO {
                             rs.getString("location"),
                             rs.getInt("status"),
                             rs.getTimestamp("createAt"),
-                            rs.getInt("x"),
-                            rs.getInt("y"));
+                            rs.getFloat("x"),
+                            rs.getFloat("y"),
+                            rs.getObject("userID", Integer.class));  // Handle nullable Integer
                     listPinStation.add(station);
                 }
 
@@ -166,7 +172,7 @@ public class PinStationDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT stationID, stationName, location, status, x, y, createAt FROM dbo.pinStation WHERE stationID = ?";
+        String sql = "SELECT stationID, stationName, location, status, x, y, userID, createAt FROM dbo.pinStation WHERE stationID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -182,8 +188,9 @@ public class PinStationDAO {
                             rs.getString("location"),
                             rs.getInt("status"),
                             rs.getTimestamp("createAt"),
-                            rs.getInt("x"),
-                            rs.getInt("y"));
+                            rs.getFloat("x"),
+                            rs.getFloat("y"),
+                            rs.getObject("userID", Integer.class));  // Handle nullable Integer
                 }
 
                 System.out.println("Retrieved pin station with ID: " + stationID);
@@ -285,8 +292,8 @@ public class PinStationDAO {
     }
 
     // Method để update PinStation với validation đầy đủ
-    public boolean updatePinStation(int stationID, String newStationName, String newLocation, int newStatus, int newX,
-            int newY) throws SQLException {
+    public boolean updatePinStation(int stationID, String newStationName, String newLocation, float newX,
+            float newY) throws SQLException {
         // Enhanced validation
         if (stationID <= 0) {
             throw new SQLException("Invalid station ID");
@@ -310,20 +317,22 @@ public class PinStationDAO {
         if (newLocation == null || newLocation.trim().isEmpty()) {
             throw new SQLException("Location cannot be null or empty");
         }
-        if (newStatus < 0) {
-            throw new SQLException("Status must be a non-negative integer");
+        // Validate coordinates (optional - tùy theo yêu cầu business)
+        if (Float.isNaN(newX) || Float.isInfinite(newX)) {
+            throw new SQLException("Invalid X coordinate");
         }
-        if (!isValidStatus(newStatus)) {
-            throw new SQLException("Invalid status. Valid values: 0 (inactive), 1 (active), 2 (maintenance)");
+        if (Float.isNaN(newY) || Float.isInfinite(newY)) {
+            throw new SQLException("Invalid Y coordinate");
         }
 
         // Kiểm tra có thay đổi gì không
         boolean hasNameChanged = !currentStation.getStationName().equals(newStationName.trim());
         boolean hasLocationChanged = !currentStation.getLocation().equals(newLocation.trim());
-        boolean hasStatusChanged = (currentStation.getStatus() != newStatus);
+        boolean hasXChanged = (currentStation.getX() != newX);
+        boolean hasYChanged = (currentStation.getY() != newY);
 
-        if (!hasNameChanged && !hasLocationChanged && !hasStatusChanged) {
-            throw new SQLException("At least one field (name, location, or status) must be changed");
+        if (!hasNameChanged && !hasLocationChanged && !hasXChanged && !hasYChanged) {
+            throw new SQLException("At least one field (name, location, or coordinates) must be changed");
         }
 
         // Kiểm tra duplicate name nếu name thay đổi
@@ -335,7 +344,7 @@ public class PinStationDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        String sql = "UPDATE dbo.pinStation SET stationName = ?, location = ?, status = ?, x = ?, y = ? WHERE stationID = ?";
+        String sql = "UPDATE dbo.pinStation SET stationName = ?, location = ?, x = ?, y = ? WHERE stationID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -343,10 +352,9 @@ public class PinStationDAO {
                 ptm = conn.prepareStatement(sql);
                 ptm.setString(1, newStationName.trim());
                 ptm.setString(2, newLocation.trim());
-                ptm.setInt(3, newStatus);
-                ptm.setInt(4, newX);
-                ptm.setInt(5, newY);
-                ptm.setInt(6, stationID);
+                ptm.setFloat(3, newX);
+                ptm.setFloat(4, newY);
+                ptm.setInt(5, stationID);
 
                 int rowsAffected = ptm.executeUpdate();
                 success = (rowsAffected > 0);
@@ -354,7 +362,6 @@ public class PinStationDAO {
                 System.out.println("Update PinStation - ID: " + stationID +
                         ", Name: " + newStationName +
                         ", Location: " + newLocation +
-                        ", Status: " + newStatus +
                         ", Rows affected: " + rowsAffected);
             }
         } catch (ClassNotFoundException e) {

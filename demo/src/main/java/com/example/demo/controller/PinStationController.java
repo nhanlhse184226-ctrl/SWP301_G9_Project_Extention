@@ -35,8 +35,9 @@ public class PinStationController {
             @Parameter(description = "Name of the charging station", required = true) @RequestParam String stationName,
             @Parameter(description = "Location/address of the charging station", required = true) @RequestParam String location,
             @Parameter(description = "Station status (0=inactive, 1=active, 2=maintenance)", example = "1") @RequestParam(defaultValue = "1") int status,
-            @Parameter(description = "X coordinate of the station", required = true) @RequestParam int x,
-            @Parameter(description = "Y coordinate of the station", required = true) @RequestParam int y) {
+            @Parameter(description = "X coordinate of the station", required = true) @RequestParam float x,
+            @Parameter(description = "Y coordinate of the station", required = true) @RequestParam float y,
+            @Parameter(description = "User ID of station staff", required = false) @RequestParam(required = false) Integer userID) {
         
         try {
             // Validate input
@@ -62,7 +63,8 @@ public class PinStationController {
                 location.trim(), 
                 status,
                 x,
-                y
+                y,
+                userID
             );
             
             if (success) {
@@ -151,9 +153,8 @@ public class PinStationController {
             @Parameter(description = "Station ID to update", required = true) @RequestParam int stationID,
             @Parameter(description = "New station name", required = true) @RequestParam String stationName,
             @Parameter(description = "New station location", required = true) @RequestParam String location,
-            @Parameter(description = "New station status (0=inactive, 1=active, 2=maintenance)", required = true) @RequestParam int status,
-            @Parameter(description = "New X coordinate", required = true) @RequestParam int x,
-            @Parameter(description = "New Y coordinate", required = true) @RequestParam int y) {
+            @Parameter(description = "New X coordinate", required = true) @RequestParam Float x,
+            @Parameter(description = "New Y coordinate", required = true) @RequestParam Float y) {
         
         try {
             // Validate input
@@ -169,17 +170,12 @@ public class PinStationController {
                 return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Location is required"));
             }
-            if (status < 0 || status > 2) {
-                return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Status must be 0 (inactive), 1 (active), or 2 (maintenance)"));
-            }
             
             // Gọi DAO để update station
             boolean success = pinStationDAO.updatePinStation(
                 stationID,
                 stationName.trim(), 
                 location.trim(), 
-                status,
                 x,
                 y
             );
@@ -208,7 +204,7 @@ public class PinStationController {
     @GetMapping("/pinStation/updateStatus")
     @Operation(summary = "Toggle station status", description = "Toggle the status of a charging station and all its associated pin slots between active and inactive.")
     public ResponseEntity<ApiResponse<Object>> togglePinStationStatus(
-            @Parameter(description = "Station ID to toggle status with 0 is active and 1N is inactive", required = true) @RequestParam int stationID) {
+            @Parameter(description = "Station ID to toggle status with 1 is active and 0 is inactive", required = true) @RequestParam int stationID) {
         try {
             // Đảo ngược status của pinStation và tất cả pinSlot
             boolean result = pinStationDAO.updateStatus(stationID);
