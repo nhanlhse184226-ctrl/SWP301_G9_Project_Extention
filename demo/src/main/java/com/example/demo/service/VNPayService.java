@@ -38,16 +38,19 @@ public class VNPayService {
     
     @Autowired
     private VNPayQRCodeService vnpayQRCodeService;
+
+    // DAO for persistence
+    private final com.example.demo.dao.VNPayPaymentDAO vnpayPaymentDAO = new com.example.demo.dao.VNPayPaymentDAO();
     
     /**
-     * Tạo payment với QR code - Method mới cho frontend
+     * Tạo payment với QR code - Method mới cho frontend (với đầy đủ fields)
      */
-    public VNPayPaymentResponseDTO createPaymentWithQR(Integer userID, Integer servicePackID, 
+    public VNPayPaymentResponseDTO createPaymentWithQR(Integer userID, Integer packID, Integer stationID, Integer pinID,
                                                       Double amountVND, String orderInfo, String ipAddress) 
             throws UnsupportedEncodingException {
         
-        // Tạo payment record
-        String txnRef = createPayment(userID, servicePackID, amountVND, orderInfo);
+        // Tạo payment record với đầy đủ fields
+        String txnRef = createPayment(userID, packID, stationID, pinID, amountVND, orderInfo);
         
         // Build payment URL
         String paymentUrl = buildPaymentUrl(txnRef, amountVND, orderInfo, ipAddress);
@@ -75,23 +78,49 @@ public class VNPayService {
         
         return response;
     }
+
+    /**
+     * Tạo payment với QR code - Method cũ cho backward compatibility 
+     */
+    public VNPayPaymentResponseDTO createPaymentWithQR(Integer userID, Integer servicePackID, 
+                                                      Double amountVND, String orderInfo, String ipAddress) 
+            throws UnsupportedEncodingException {
+        
+        // Gọi method mới với stationID và pinID = null
+        return createPaymentWithQR(userID, servicePackID, null, null, amountVND, orderInfo, ipAddress);
+    }
     
     /**
-     * Tạo payment record và trả về transaction reference
+     * Tạo payment record với đầy đủ fields và trả về transaction reference
      */
-    public String createPayment(Integer userID, Integer servicePackID, Double amountVND, String orderInfo) {
+    public String createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, Double amountVND, String orderInfo) {
         // Generate unique transaction reference
         String vnp_TxnRef = generateTxnRef();
         
         // Convert amount to VNPay format (VND * 100)
         Long vnp_Amount = Math.round(amountVND * 100);
         
-        // TODO: Save to database using DAO
-        // vnpayPaymentDAO.createPayment(userID, servicePackID, vnp_TxnRef, orderInfo, vnp_Amount);
+        // Save to database using DAO với đầy đủ fields
+        try {
+            boolean created = vnpayPaymentDAO.createPayment(userID, packID, stationID, pinID, vnp_TxnRef, orderInfo, vnp_Amount, 0);
+            if (!created) {
+                System.out.println("Warning: Failed to persist VNPay payment record for txnRef=" + vnp_TxnRef);
+            }
+        } catch (Exception e) {
+            System.out.println("Error saving VNPay payment: " + e.getMessage());
+        }
         
         System.out.println("Created VNPay payment: " + vnp_TxnRef + " for amount: " + amountVND + " VND");
         
         return vnp_TxnRef;
+    }
+
+    /**
+     * Tạo payment record và trả về transaction reference (backward compatibility)
+     */
+    public String createPayment(Integer userID, Integer servicePackID, Double amountVND, String orderInfo) {
+        // Gọi method mới với stationID và pinID = null
+        return createPayment(userID, servicePackID, null, null, amountVND, orderInfo);
     }
     
     /**
@@ -263,14 +292,28 @@ public class VNPayService {
                            VNPayConfig.TRANSACTION_SUCCESS.equals(vnp_TransactionStatus);
         
         if (isSuccess) {
-            // TODO: Update database using DAO
-            // vnpayPaymentDAO.updatePaymentSuccess(vnp_TxnRef, vnp_TransactionNo, vnp_ResponseCode, 
-            //                                     vnp_TransactionStatus, vnp_PayDate, vnp_BankCode);
+            // Update payment status to SUCCESS using DAO
+            try {
+                vnpayPaymentDAO.updatePaymentStatus(vnp_TxnRef, 1, // 1 = SUCCESS
+                                                   vnp_TransactionNo, vnp_ResponseCode, 
+                                                   vnp_TransactionStatus, vnp_PayDate, vnp_BankCode);
+                System.out.println("Payment updated successfully for txnRef: " + vnp_TxnRef);
+            } catch (Exception e) {
+                System.err.println("Failed to update payment status: " + e.getMessage());
+            }
             
             System.out.println("VNPay payment successful: " + vnp_TxnRef);
             return true;
         } else {
-            // TODO: Update database as failed
+            // Update payment status to FAILED using DAO
+            try {
+                vnpayPaymentDAO.updatePaymentStatus(vnp_TxnRef, 2, // 2 = FAILED
+                                                   vnp_TransactionNo, vnp_ResponseCode, 
+                                                   vnp_TransactionStatus, vnp_PayDate, vnp_BankCode);
+                System.out.println("Payment marked as failed for txnRef: " + vnp_TxnRef);
+            } catch (Exception e) {
+                System.err.println("Failed to update payment status: " + e.getMessage());
+            }
             // vnpayPaymentDAO.updatePaymentFailed(vnp_TxnRef, vnp_ResponseCode, vnp_TransactionStatus);
             
             System.out.println("VNPay payment failed: " + vnp_TxnRef + ", Code: " + vnp_ResponseCode);
@@ -282,14 +325,12 @@ public class VNPayService {
      * Get payment status by transaction reference
      */
     public VNPayPaymentDTO getPaymentByTxnRef(String vnp_TxnRef) {
-        // TODO: Implement DAO call
-        // return vnpayPaymentDAO.getPaymentByTxnRef(vnp_TxnRef);
-        
-        // Mock response for now
-        VNPayPaymentDTO payment = new VNPayPaymentDTO();
-        payment.setVnp_TxnRef(vnp_TxnRef);
-        payment.setStatus("SUCCESS");
-        return payment;
+        try {
+            return vnpayPaymentDAO.getPaymentByTxnRef(vnp_TxnRef);
+        } catch (Exception e) {
+            System.out.println("Error fetching payment by txnRef: " + e.getMessage());
+            return null;
+        }
     }
     
     // Helper methods
@@ -324,5 +365,58 @@ public class VNPayService {
         } catch (Exception e) {
             throw new RuntimeException("Error generating HMAC SHA512", e);
         }
+    }
+
+    /**
+     * Process VNPay payment response and update status
+     */
+    public boolean processPaymentResponse(Map<String, String> vnpParams) {
+        try {
+            String vnp_TxnRef = vnpParams.get("vnp_TxnRef");
+            String vnp_ResponseCode = vnpParams.get("vnp_ResponseCode");
+            String vnp_TransactionNo = vnpParams.get("vnp_TransactionNo");
+            String vnp_TransactionStatus = vnpParams.get("vnp_TransactionStatus");
+            String vnp_PayDate = vnpParams.get("vnp_PayDate");
+            String vnp_BankCode = vnpParams.get("vnp_BankCode");
+            
+            // Determine status based on response code
+            int status;
+            if ("00".equals(vnp_ResponseCode)) {
+                status = 1; // SUCCESS
+            } else {
+                status = 2; // FAILED
+            }
+            
+            // Update payment status in database
+            return vnpayPaymentDAO.updatePaymentStatus(vnp_TxnRef, status, vnp_TransactionNo, 
+                                                     vnp_ResponseCode, vnp_TransactionStatus, 
+                                                     vnp_PayDate, vnp_BankCode);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Verify VNPay signature
+     */
+    public boolean verifyPaymentSignature(Map<String, String> vnpParams) {
+        String vnp_SecureHash = vnpParams.get("vnp_SecureHash");
+        vnpParams.remove("vnp_SecureHash");
+        vnpParams.remove("vnp_SecureHashType");
+        
+        // Build hash data
+        StringBuilder hashData = new StringBuilder();
+        vnpParams.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> {
+                if (hashData.length() > 0) {
+                    hashData.append("&");
+                }
+                hashData.append(entry.getKey()).append("=").append(entry.getValue());
+            });
+        
+        String signValue = hmacSHA512(VNPayConfig.VNP_HASH_SECRET, hashData.toString());
+        return signValue.equals(vnp_SecureHash);
     }
 }

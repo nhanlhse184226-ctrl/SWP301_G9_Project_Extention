@@ -8,7 +8,9 @@ public class VNPayPaymentDTO {
     // Basic payment info
     private Integer paymentID;
     private Integer userID;
-    private Integer servicePackID;
+    private Integer packID;
+    private Integer stationID;
+    private Integer pinID;
     
     // VNPay fields
     private String vnp_TxnRef;           // Mã giao dịch
@@ -23,7 +25,7 @@ public class VNPayPaymentDTO {
     private String vnp_BankCode;         // Mã ngân hàng
     
     // Simple status
-    private String status;               // PENDING, SUCCESS, FAILED, EXPIRED
+    private int status;               //0 PENDING, 1 SUCCESS, 2 FAILED, 3 EXPIRED
     
     // Timestamps
     private String createdAt;
@@ -34,12 +36,14 @@ public class VNPayPaymentDTO {
     public VNPayPaymentDTO() {}
     
     // Constructor for creation
-    public VNPayPaymentDTO(Integer userID, Integer servicePackID, String orderInfo, Long amount) {
+    public VNPayPaymentDTO(Integer userID, Integer packID, String orderInfo, Long amount, Integer stationID, Integer pinID) {
         this.userID = userID;
-        this.servicePackID = servicePackID;
+        this.packID = packID;
         this.vnp_OrderInfo = orderInfo;
         this.vnp_Amount = amount;
-        this.status = "PENDING";
+        this.status = 0;
+        this.stationID = stationID;
+        this.pinID = pinID;
     }
     
     // Getters and Setters
@@ -49,9 +53,15 @@ public class VNPayPaymentDTO {
     public Integer getUserID() { return userID; }
     public void setUserID(Integer userID) { this.userID = userID; }
     
-    public Integer getServicePackID() { return servicePackID; }
-    public void setServicePackID(Integer servicePackID) { this.servicePackID = servicePackID; }
+    public Integer getPackID() { return packID; }
+    public void setPackID(Integer packID) { this.packID = packID; }
     
+    public Integer getStationID() { return stationID; }
+    public void setStationID(Integer stationID) { this.stationID = stationID; }
+
+    public Integer getPinID() { return pinID; }
+    public void setPinID(Integer pinID) { this.pinID = pinID; }
+
     public String getVnp_TxnRef() { return vnp_TxnRef; }
     public void setVnp_TxnRef(String vnp_TxnRef) { this.vnp_TxnRef = vnp_TxnRef; }
     
@@ -75,9 +85,9 @@ public class VNPayPaymentDTO {
     
     public String getVnp_BankCode() { return vnp_BankCode; }
     public void setVnp_BankCode(String vnp_BankCode) { this.vnp_BankCode = vnp_BankCode; }
-    
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+
+    public int getStatus() { return status; }
+    public void setStatus(int status) { this.status = status; }
     
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
@@ -90,17 +100,17 @@ public class VNPayPaymentDTO {
     
     // Helper methods
     public boolean isSuccessful() {
-        return "SUCCESS".equals(status) && 
+        return status == 1 && 
                "00".equals(vnp_ResponseCode) && 
                "00".equals(vnp_TransactionStatus);
     }
     
     public boolean isPending() {
-        return "PENDING".equals(status);
+        return status == 0;
     }
     
     public boolean isFailed() {
-        return "FAILED".equals(status);
+        return status == 2;
     }
     
     // Get amount in VND (divide by 100)

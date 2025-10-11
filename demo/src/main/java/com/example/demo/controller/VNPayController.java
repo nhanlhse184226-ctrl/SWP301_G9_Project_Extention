@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.VNPayPaymentDTO;
 import com.example.demo.dto.VNPayPaymentResponseDTO;
 import com.example.demo.service.VNPayService;
 
@@ -45,7 +46,9 @@ public class VNPayController {
                description = "Tạo VNPay payment và trả về QR code để hiển thị trên frontend")
     public ApiResponse<VNPayPaymentResponseDTO> createPayment(
             @Parameter(description = "User ID") @RequestParam Integer userID,
-            @Parameter(description = "Service Pack ID") @RequestParam Integer servicePackID,
+            @Parameter(description = "Pack ID") @RequestParam Integer packID,
+            @Parameter(description = "Station ID") @RequestParam(required = false) Integer stationID,
+            @Parameter(description = "Pin ID") @RequestParam(required = false) Integer pinID,
             @Parameter(description = "Amount in VND") @RequestParam Double amount,
             @Parameter(description = "Order description") @RequestParam String orderInfo,
             HttpServletRequest request) {
@@ -56,7 +59,7 @@ public class VNPayController {
             
             // Tạo payment với QR code
             VNPayPaymentResponseDTO paymentResponse = vnpayService.createPaymentWithQR(
-                userID, servicePackID, amount, orderInfo, ipAddress);
+                userID, packID, stationID, pinID, amount, orderInfo, ipAddress);
             
             return ApiResponse.success("VNPay payment with QR code created successfully", paymentResponse);
             
@@ -75,14 +78,16 @@ public class VNPayController {
                description = "Tạo VNPay payment URL truyền thống để redirect user")
     public ApiResponse<String> createPaymentUrl(
             @Parameter(description = "User ID") @RequestParam Integer userID,
-            @Parameter(description = "Service Pack ID") @RequestParam Integer servicePackID,
+            @Parameter(description = "Pack ID") @RequestParam Integer packID,
+            @Parameter(description = "Station ID") @RequestParam(required = false) Integer stationID,
+            @Parameter(description = "Pin ID") @RequestParam(required = false) Integer pinID,
             @Parameter(description = "Amount in VND") @RequestParam Double amount,
             @Parameter(description = "Order description") @RequestParam String orderInfo,
             HttpServletRequest request) {
         
         try {
             // Tạo payment record
-            String txnRef = vnpayService.createPayment(userID, servicePackID, amount, orderInfo);
+            String txnRef = vnpayService.createPayment(userID, packID, stationID, pinID, amount, orderInfo);
             
             // Get client IP
             String ipAddress = getClientIpAddress(request);
@@ -106,25 +111,29 @@ public class VNPayController {
     public ResponseEntity<String> handleVNPayReturn(HttpServletRequest request) {
         
         try {
-            // Lấy tất cả parameters từ VNPay - ENCODE theo code mẫu chính thức
+            // Lấy tất cả parameters từ VNPay - encode tên và giá trị trước khi put vào map
             Map<String, String> fields = new HashMap<>();
             for (Enumeration<String> params = request.getParameterNames(); params.hasMoreElements();) {
-                String fieldName = java.net.URLEncoder.encode(params.nextElement(), java.nio.charset.StandardCharsets.US_ASCII.toString());
-                String fieldValue = java.net.URLEncoder.encode(request.getParameter(fieldName), java.nio.charset.StandardCharsets.US_ASCII.toString());
-                if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                String rawName = params.nextElement();
+                String rawValue = request.getParameter(rawName);
+                if (rawValue != null && rawValue.length() > 0) {
+                    String fieldName = java.net.URLEncoder.encode(rawName, java.nio.charset.StandardCharsets.US_ASCII.toString());
+                    String fieldValue = java.net.URLEncoder.encode(rawValue, java.nio.charset.StandardCharsets.US_ASCII.toString());
                     fields.put(fieldName, fieldValue);
                 }
             }
-            
-            // Lấy vnp_SecureHash
+
+            // Lấy vnp_SecureHash (raw)
             String vnp_SecureHash = request.getParameter("vnp_SecureHash");
-            
-            // Remove vnp_SecureHash khỏi fields để validate
-            if (fields.containsKey("vnp_SecureHashType")) {
-                fields.remove("vnp_SecureHashType");
+
+            // Remove encoded vnp_SecureHash keys khỏi fields để validate (keys trong fields đã được encode)
+            String encSecureHashType = java.net.URLEncoder.encode("vnp_SecureHashType", java.nio.charset.StandardCharsets.US_ASCII.toString());
+            String encSecureHash = java.net.URLEncoder.encode("vnp_SecureHash", java.nio.charset.StandardCharsets.US_ASCII.toString());
+            if (fields.containsKey(encSecureHashType)) {
+                fields.remove(encSecureHashType);
             }
-            if (fields.containsKey("vnp_SecureHash")) {
-                fields.remove("vnp_SecureHash");
+            if (fields.containsKey(encSecureHash)) {
+                fields.remove(encSecureHash);
             }
             
             // Verify checksum theo VNPay format
@@ -135,6 +144,23 @@ public class VNPayController {
             String transactionStatus = request.getParameter("vnp_TransactionStatus");
             String orderInfo = request.getParameter("vnp_OrderInfo");
             String amount = request.getParameter("vnp_Amount");
+            String transactionNo = request.getParameter("vnp_TransactionNo");
+            String payDate = request.getParameter("vnp_PayDate");
+            String bankCode = request.getParameter("vnp_BankCode");
+            
+            // Update payment status in database if signature is valid
+            if (signValue.equals(vnp_SecureHash)) {
+                Map<String, String> vnpParams = new HashMap<>();
+                vnpParams.put("vnp_TxnRef", txnRef);
+                vnpParams.put("vnp_ResponseCode", responseCode);
+                vnpParams.put("vnp_TransactionNo", transactionNo);
+                vnpParams.put("vnp_TransactionStatus", transactionStatus);
+                vnpParams.put("vnp_PayDate", payDate);
+                vnpParams.put("vnp_BankCode", bankCode);
+                
+                // Process payment response and update status
+                vnpayService.processPaymentResponse(vnpParams);
+            }
             
             // Tạo HTML response
             StringBuilder html = new StringBuilder();
@@ -205,25 +231,29 @@ public class VNPayController {
         
         try {
             // Begin process return from VNPAY - theo code mẫu IPN chính thức
-            // ENCODE parameters khi put vào fields
+            // ENCODE parameters khi put vào fields (lấy raw name/value rồi encode)
             Map<String, String> fields = new HashMap<>();
             for (Enumeration<String> params = request.getParameterNames(); params.hasMoreElements();) {
-                String fieldName = java.net.URLEncoder.encode(params.nextElement(), java.nio.charset.StandardCharsets.US_ASCII.toString());
-                String fieldValue = java.net.URLEncoder.encode(request.getParameter(fieldName), java.nio.charset.StandardCharsets.US_ASCII.toString());
-                if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                String rawName = params.nextElement();
+                String rawValue = request.getParameter(rawName);
+                if (rawValue != null && rawValue.length() > 0) {
+                    String fieldName = java.net.URLEncoder.encode(rawName, java.nio.charset.StandardCharsets.US_ASCII.toString());
+                    String fieldValue = java.net.URLEncoder.encode(rawValue, java.nio.charset.StandardCharsets.US_ASCII.toString());
                     fields.put(fieldName, fieldValue);
                 }
             }
-            
+
             // Lấy vnp_SecureHash từ request gốc (KHÔNG ENCODE) - Theo code mẫu VNPay IPN
             String vnp_SecureHash = request.getParameter("vnp_SecureHash");
-            
-            // Remove secure hash fields từ raw fields map
-            if (fields.containsKey("vnp_SecureHashType")) {
-                fields.remove("vnp_SecureHashType");
+
+            // Remove encoded secure hash keys (fields map chứa encoded keys)
+            String encSecureHashTypeIpn = java.net.URLEncoder.encode("vnp_SecureHashType", java.nio.charset.StandardCharsets.US_ASCII.toString());
+            String encSecureHashIpn = java.net.URLEncoder.encode("vnp_SecureHash", java.nio.charset.StandardCharsets.US_ASCII.toString());
+            if (fields.containsKey(encSecureHashTypeIpn)) {
+                fields.remove(encSecureHashTypeIpn);
             }
-            if (fields.containsKey("vnp_SecureHash")) {
-                fields.remove("vnp_SecureHash");
+            if (fields.containsKey(encSecureHashIpn)) {
+                fields.remove(encSecureHashIpn);
             }
             
             // Check checksum - hashAllFields sẽ xử lý fields đã encode
@@ -231,34 +261,56 @@ public class VNPayController {
             if (signValue.equals(vnp_SecureHash)) {
                 // Checksum hợp lệ
                 
-                // Theo code mẫu VNPay IPN:
-                boolean checkOrderId = true; // vnp_TxnRef exists in your database
-                boolean checkAmount = true; // vnp_Amount is valid
-                boolean checkOrderStatus = true; // PaymentStatus = 0 (pending)
+                String txnRef = request.getParameter("vnp_TxnRef");
+                String responseCode = request.getParameter("vnp_ResponseCode");
+                String transactionNo = request.getParameter("vnp_TransactionNo");
+                String transactionStatus = request.getParameter("vnp_TransactionStatus");
+                String payDate = request.getParameter("vnp_PayDate");
+                String bankCode = request.getParameter("vnp_BankCode");
                 
-                if(checkOrderId) {
-                    if(checkAmount) {
-                        if (checkOrderStatus) {
-                            if ("00".equals(request.getParameter("vnp_ResponseCode"))) {
-                                // TODO: Update PaymentStatus = 1 into Database
-                                responseMap.put("RspCode", "00");
-                                responseMap.put("Message", "Confirm Success");
+                // Check if payment exists in database
+                try {
+                    VNPayPaymentDTO existingPayment = vnpayService.getPaymentByTxnRef(txnRef);
+                    boolean checkOrderId = (existingPayment != null);
+                    boolean checkAmount = true; // Can add amount validation here
+                    boolean checkOrderStatus = (existingPayment != null && existingPayment.getStatus() == 0); // PENDING
+                    
+                    if(checkOrderId) {
+                        if(checkAmount) {
+                            if (checkOrderStatus) {
+                                // Update payment status in database
+                                Map<String, String> vnpParams = new HashMap<>();
+                                vnpParams.put("vnp_TxnRef", txnRef);
+                                vnpParams.put("vnp_ResponseCode", responseCode);
+                                vnpParams.put("vnp_TransactionNo", transactionNo);
+                                vnpParams.put("vnp_TransactionStatus", transactionStatus);
+                                vnpParams.put("vnp_PayDate", payDate);
+                                vnpParams.put("vnp_BankCode", bankCode);
+                                
+                                boolean updateSuccess = vnpayService.processPaymentResponse(vnpParams);
+                                
+                                if (updateSuccess) {
+                                    responseMap.put("RspCode", "00");
+                                    responseMap.put("Message", "Confirm Success");
+                                } else {
+                                    responseMap.put("RspCode", "99");
+                                    responseMap.put("Message", "Failed to update payment status");
+                                }
                             } else {
-                                // TODO: Update PaymentStatus = 2 into Database
-                                responseMap.put("RspCode", "00");
-                                responseMap.put("Message", "Confirm Success");
+                                responseMap.put("RspCode", "02");
+                                responseMap.put("Message", "Order already confirmed");
                             }
                         } else {
-                            responseMap.put("RspCode", "02");
-                            responseMap.put("Message", "Order already confirmed");
+                            responseMap.put("RspCode", "04");
+                            responseMap.put("Message", "Invalid Amount");
                         }
                     } else {
-                        responseMap.put("RspCode", "04");
-                        responseMap.put("Message", "Invalid Amount");
+                        responseMap.put("RspCode", "01");
+                        responseMap.put("Message", "Order not Found");
                     }
-                } else {
-                    responseMap.put("RspCode", "01");
-                    responseMap.put("Message", "Order not Found");
+                } catch (Exception dbEx) {
+                    responseMap.put("RspCode", "99");
+                    responseMap.put("Message", "Database error: " + dbEx.getMessage());
                 }
             } else {
                 responseMap.put("RspCode", "97");
