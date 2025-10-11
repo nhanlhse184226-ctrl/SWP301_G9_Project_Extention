@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNPay QR Code Test - Real Banking Apps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .qr-section {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .qr-code {
+            max-width: 300px;
+            margin: 20px auto;
+            border: 3px solid #007bff;
+            border-radius: 10px;
+            padding: 10px;
+            background: white;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.pending {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .status.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status.failed {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .app-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .app-link {
+            text-align: center;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #495057;
+            border: 2px solid transparent;
+        }
+        .app-link:hover {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        .payment-info {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .instructions {
+            background: #fff9c4;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 VNPay QR Code Test với App Ngân Hàng Thật</h1>
+        
+        <div class="instructions">
+            <h3>📱 Hướng dẫn test:</h3>
+            <ol>
+                <li><strong>Tạo QR Code</strong> bằng cách click "Tạo Payment"</li>
+                <li><strong>Download app ngân hàng</strong> bất kỳ (VCB, TCB, VietinBank...)</li>
+                <li><strong>Mở app → "Quét QR"</strong> hoặc "VNPay QR"</li>
+                <li><strong>Quét QR code</strong> hiển thị bên dưới</li>
+                <li><strong>Test payment flow</strong> với sandbox</li>
+            </ol>
+        </div>
+
+        <div class="payment-info">
+            <h3>💰 Thông tin thanh toán:</h3>
+            <p><strong>Gói dịch vụ:</strong> Premium Package</p>
+            <p><strong>Số tiền:</strong> 299,000 VND</p>
+            <p><strong>Mô tả:</strong> Test VNPay với app ngân hàng thật</p>
+        </div>
+
+        <div class="qr-section">
+            <h3>🎯 Bước 1: Tạo QR Code Payment</h3>
+            <button class="btn" onclick="createPayment()">🚀 Tạo VNPay Payment</button>
+            
+            <div id="loading" style="display: none;">
+                <p>⏳ Đang tạo QR Code...</p>
+            </div>
+
+            <div id="qr-container" style="display: none;">
+                <h3>📱 Bước 2: Quét QR Code bằng App Banking</h3>
+                <div class="qr-code">
+                    <img id="qr-image" style="width: 100%; height: auto;" />
+                </div>
+                
+                <div id="payment-details">
+                    <p><strong>Mã giao dịch:</strong> <span id="txn-ref"></span></p>
+                    <p><strong>Hết hạn:</strong> <span id="expired-at"></span></p>
+                </div>
+
+                <div class="status pending" id="payment-status">
+                    🟡 Đang chờ thanh toán - Hãy quét QR bằng app ngân hàng
+                </div>
+
+                <button class="btn btn-warning" onclick="checkStatus()">🔄 Kiểm tra trạng thái</button>
+                <button class="btn btn-success" onclick="openPaymentUrl()">📱 Mở trên Mobile</button>
+            </div>
+        </div>
+
+        <div class="app-links">
+            <a href="https://play.google.com/store/apps/details?id=com.VCB" target="_blank" class="app-link">
+                <h4>🏦 VietcomBank</h4>
+                <p>VCB Digibank</p>
+                <small>Quét QR VNPay</small>
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=com.techcombank.bb.app" target="_blank" class="app-link">
+                <h4>🏦 Techcombank</h4>
+                <p>TCB Mobile</p>
+                <small>Thanh toán QR</small>
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=com.vietinbank.ipay" target="_blank" class="app-link">
+                <h4>🏦 VietinBank</h4>
+                <p>iPay Mobile</p>
+                <small>VNPay QR</small>
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=com.vnpay.vnpayapp" target="_blank" class="app-link">
+                <h4>💳 VNPay</h4>
+                <p>VNPay Official</p>
+                <small>Quét mã thanh toán</small>
+            </a>
+        </div>
+
+        <div class="instructions">
+            <h3>🔍 Debugging Tips:</h3>
+            <ul>
+                <li><strong>Nếu QR không work:</strong> Check console log (F12)</li>
+                <li><strong>Test card:</strong> 9704198526191432198, OTP: 123456</li>
+                <li><strong>Sandbox mode:</strong> An toàn 100%, không mất tiền</li>
+                <li><strong>Return URL:</strong> Sẽ redirect về localhost:8080</li>
+            </ul>
+        </div>
+
+        <div id="logs" style="margin-top: 30px;">
+            <h3>📝 Logs:</h3>
+            <div id="log-content" style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentTxnRef = null;
+        let currentPaymentUrl = null;
+        let checkInterval = null;
+
+        function log(message) {
+            const logContent = document.getElementById('log-content');
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.textContent += `[${timestamp}] ${message}\n`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        async function createPayment() {
+            document.getElementById('loading').style.display = 'block';
+            log('🚀 Tạo VNPay payment...');
+
+            try {
+                const response = await fetch('/vnpay/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'userID=1&servicePackID=1&amount=299000&orderInfo=Test VNPay với app ngân hàng thật'
+                });
+
+                const result = await response.json();
+                log(`📄 API Response: ${JSON.stringify(result, null, 2)}`);
+
+                if (result.success) {
+                    currentTxnRef = result.data.txnRef;
+                    currentPaymentUrl = result.data.paymentUrl;
+
+                    // Display QR code
+                    document.getElementById('qr-image').src = result.data.qrCodeBase64;
+                    document.getElementById('txn-ref').textContent = result.data.txnRef;
+                    document.getElementById('expired-at').textContent = result.data.expiredAt;
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('qr-container').style.display = 'block';
+
+                    log(`✅ QR Code tạo thành công! TxnRef: ${currentTxnRef}`);
+                    log(`🔗 Payment URL: ${currentPaymentUrl}`);
+                    log(`⏰ Hết hạn: ${result.data.expiredAt}`);
+                    log(`📱 Bây giờ hãy quét QR bằng app ngân hàng!`);
+
+                    // Auto check status every 5 seconds
+                    startStatusCheck();
+                } else {
+                    log(`❌ Lỗi tạo payment: ${result.message}`);
+                    document.getElementById('loading').style.display = 'none';
+                }
+            } catch (error) {
+                log(`💥 Lỗi kết nối: ${error.message}`);
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        async function checkStatus() {
+            if (!currentTxnRef) {
+                log('⚠️ Chưa có giao dịch để check');
+                return;
+            }
+
+            try {
+                log(`🔍 Checking status cho TxnRef: ${currentTxnRef}`);
+                const response = await fetch(`/vnpay/status/${currentTxnRef}`);
+                const result = await response.json();
+
+                log(`📊 Status Response: ${JSON.stringify(result, null, 2)}`);
+
+                const statusElement = document.getElementById('payment-status');
+                if (result.success && result.data) {
+                    const status = result.data.status;
+                    switch (status) {
+                        case 'SUCCESS':
+                            statusElement.className = 'status success';
+                            statusElement.innerHTML = '🟢 Thanh toán thành công!';
+                            log('🎉 THANH TOÁN THÀNH CÔNG!');
+                            stopStatusCheck();
+                            break;
+                        case 'FAILED':
+                            statusElement.className = 'status failed';
+                            statusElement.innerHTML = '🔴 Thanh toán thất bại';
+                            log('❌ Thanh toán thất bại');
+                            stopStatusCheck();
+                            break;
+                        case 'PENDING':
+                            statusElement.className = 'status pending';
+                            statusElement.innerHTML = '🟡 Đang chờ thanh toán...';
+                            log('⏳ Vẫn đang chờ thanh toán');
+                            break;
+                        default:
+                            log(`❓ Status không xác định: ${status}`);
+                    }
+                } else {
+                    log(`⚠️ Không thể check status: ${result.message}`);
+                }
+            } catch (error) {
+                log(`💥 Lỗi check status: ${error.message}`);
+            }
+        }
+
+        function openPaymentUrl() {
+            if (currentPaymentUrl) {
+                log('📱 Mở payment URL trên tab mới...');
+                window.open(currentPaymentUrl, '_blank');
+            } else {
+                log('⚠️ Chưa có payment URL');
+            }
+        }
+
+        function startStatusCheck() {
+            if (checkInterval) {
+                clearInterval(checkInterval);
+            }
+            checkInterval = setInterval(checkStatus, 5000); // Check every 5 seconds
+            log('🔄 Bắt đầu auto-check status mỗi 5 giây...');
+        }
+
+        function stopStatusCheck() {
+            if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+                log('⏹️ Dừng auto-check status');
+            }
+        }
+
+        // Initial log
+        log('🏦 VNPay QR Code Test với App Ngân Hàng Thật');
+        log('📱 Sẵn sàng để test! Click "Tạo VNPay Payment" để bắt đầu');
+    </script>
+</body>
+</html>
