@@ -46,6 +46,26 @@ public class VNPayPaymentDTO {
         this.pinID = pinID;
     }
     
+    // Constructor for pin change history (stationID, pinID, createdAt, bankCode, status)
+    public VNPayPaymentDTO(Integer stationID, Integer pinID, String createdAt, String vnp_BankCode, int status) {
+        this.stationID = stationID;
+        this.pinID = pinID;
+        this.createdAt = createdAt;
+        this.vnp_BankCode = vnp_BankCode;
+        this.status = status;
+    }
+    
+    // Constructor for payment history (packID, txnRef, orderInfo, amount, bankCode, status, createdAt)
+    public VNPayPaymentDTO(Integer packID, String vnp_TxnRef, String vnp_OrderInfo, Long vnp_Amount, String vnp_BankCode, int status, String createdAt) {
+        this.packID = packID;
+        this.vnp_TxnRef = vnp_TxnRef;
+        this.vnp_OrderInfo = vnp_OrderInfo;
+        this.vnp_Amount = vnp_Amount;
+        this.vnp_BankCode = vnp_BankCode;
+        this.status = status;
+        this.createdAt = createdAt;
+    }
+    
     // Getters and Setters
     public Integer getPaymentID() { return paymentID; }
     public void setPaymentID(Integer paymentID) { this.paymentID = paymentID; }

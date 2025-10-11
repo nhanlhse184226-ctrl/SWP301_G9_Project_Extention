@@ -3,6 +3,7 @@ package com.example.demo.controller;
 import java.io.UnsupportedEncodingException;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.VNPayPaymentDTO;
 import com.example.demo.dto.VNPayPaymentResponseDTO;
+import com.example.demo.dao.VNPayPaymentDAO;
 import com.example.demo.service.VNPayService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -398,5 +400,51 @@ public class VNPayController {
         }
         
         return request.getRemoteAddr();
+    }
+
+    /**
+     * Lấy lịch sử số lần đổi pin theo userID
+     */
+    @GetMapping("/pin-history/{userID}")
+    @Operation(summary = "Get Pin Change History", 
+               description = "Lấy lịch sử số lần đổi pin theo userID - trả về stationID, pinID, createdAt, bankCode, status")
+    public ResponseEntity<ApiResponse<Object>> getPinChangeHistory(@PathVariable Integer userID) {
+        try {
+            VNPayPaymentDAO dao = new VNPayPaymentDAO();
+            List<VNPayPaymentDTO> history = dao.getPinChangeHistory(userID);
+            
+            if (history != null && !history.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success("Pin change history retrieved successfully", history));
+            } else {
+                return ResponseEntity.ok(ApiResponse.success("No pin change history found", history));
+            }
+            
+        } catch (Exception e) {
+            System.out.println("Error at VNPayController - getPinChangeHistory: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
+    }
+
+    /**
+     * Lấy lịch sử thanh toán theo userID
+     */
+    @GetMapping("/payment-history/{userID}")
+    @Operation(summary = "Get Payment History", 
+               description = "Lấy lịch sử thanh toán theo userID - trả về packID, txnRef, orderInfo, amount, bankCode, status, createdAt")
+    public ResponseEntity<ApiResponse<Object>> getPaymentHistory(@PathVariable Integer userID) {
+        try {
+            VNPayPaymentDAO dao = new VNPayPaymentDAO();
+            List<VNPayPaymentDTO> history = dao.getPaymentHistory(userID);
+            
+            if (history != null && !history.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success("Payment history retrieved successfully", history));
+            } else {
+                return ResponseEntity.ok(ApiResponse.success("No payment history found", history));
+            }
+            
+        } catch (Exception e) {
+            System.out.println("Error at VNPayController - getPaymentHistory: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
     }
 }

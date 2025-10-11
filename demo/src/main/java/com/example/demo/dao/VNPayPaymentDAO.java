@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.VNPayPaymentDTO;
@@ -97,5 +99,77 @@ public class VNPayPaymentDAO {
         } catch (ClassNotFoundException e) {
             throw new SQLException("DB driver not found: " + e.getMessage());
         }
+    }
+
+    /**
+     * Lấy lịch sử số lần đổi pin theo userID
+     * @param userID ID của user
+     * @return List<VNPayPaymentDTO> chứa thông tin stationID, pinID, createdAt, bankCode, status
+     */
+    public List<VNPayPaymentDTO> getPinChangeHistory(Integer userID) throws SQLException {
+        List<VNPayPaymentDTO> history = new ArrayList<>();
+        String sql = "SELECT stationID, pinID, createdAt, vnp_BankCode, status " +
+                     "FROM dbo.VNPayPaymentDTO WHERE userID = ? AND vnp_TransactionNo IS NOT NULL ORDER BY createdAt DESC";
+
+        try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
+            ptm.setInt(1, userID);
+            try (ResultSet rs = ptm.executeQuery()) {
+                while (rs.next()) {
+                    Integer stationID = rs.getInt("stationID");
+                    if (rs.wasNull()) stationID = null;
+                    
+                    Integer pinID = rs.getInt("pinID");
+                    if (rs.wasNull()) pinID = null;
+                    
+                    String createdAt = rs.getString("createdAt");
+                    String bankCode = rs.getString("vnp_BankCode");
+                    int status = rs.getInt("status");
+                    
+                    // Sử dụng constructor cho pin history
+                    VNPayPaymentDTO dto = new VNPayPaymentDTO(stationID, pinID, createdAt, bankCode, status);
+                    history.add(dto);
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("DB driver not found: " + e.getMessage());
+        }
+        
+        return history;
+    }
+
+    /**
+     * Lấy lịch sử thanh toán theo userID
+     * @param userID ID của user
+     * @return List<VNPayPaymentDTO> chứa thông tin packID, txnRef, orderInfo, amount, bankCode, status, createdAt
+     */
+    public List<VNPayPaymentDTO> getPaymentHistory(Integer userID) throws SQLException {
+        List<VNPayPaymentDTO> history = new ArrayList<>();
+        String sql = "SELECT packID, vnp_TxnRef, vnp_OrderInfo, vnp_Amount, vnp_BankCode, status, createdAt " +
+                     "FROM dbo.VNPayPaymentDTO WHERE userID = ? AND vnp_TransactionNo IS NOT NULL ORDER BY createdAt DESC";
+
+        try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
+            ptm.setInt(1, userID);
+            try (ResultSet rs = ptm.executeQuery()) {
+                while (rs.next()) {
+                    Integer packID = rs.getInt("packID");
+                    if (rs.wasNull()) packID = null;
+                    
+                    String txnRef = rs.getString("vnp_TxnRef");
+                    String orderInfo = rs.getString("vnp_OrderInfo");
+                    long amount = rs.getLong("vnp_Amount");
+                    String bankCode = rs.getString("vnp_BankCode");
+                    int status = rs.getInt("status");
+                    String createdAt = rs.getString("createdAt");
+                    
+                    // Sử dụng constructor cho payment history
+                    VNPayPaymentDTO dto = new VNPayPaymentDTO(packID, txnRef, orderInfo, amount, bankCode, status, createdAt);
+                    history.add(dto);
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("DB driver not found: " + e.getMessage());
+        }
+        
+        return history;
     }
 }

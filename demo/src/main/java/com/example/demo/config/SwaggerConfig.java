@@ -34,7 +34,7 @@ public class SwaggerConfig {
                                 .url("http://localhost:" + serverPort)
                                 .description("Local Development Server"),
                         new Server()
-                                .url("https://52a7be66da4c.ngrok-free.app")
+                                .url("https://012f24f987b6.ngrok-free.app/")
                                 .description("Ngrok Tunnel Server"),
                         new Server()
                                 .url("https://swp301-g9-project.onrender.com")

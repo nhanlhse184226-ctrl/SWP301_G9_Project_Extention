@@ -322,7 +322,7 @@ public class VNPayService {
     }
     
     /**
-     * Get payment status by transaction reference
+     * Get payment by transaction reference
      */
     public VNPayPaymentDTO getPaymentByTxnRef(String vnp_TxnRef) {
         try {
@@ -332,7 +332,8 @@ public class VNPayService {
             return null;
         }
     }
-    
+
+   
     // Helper methods
     
     /**
