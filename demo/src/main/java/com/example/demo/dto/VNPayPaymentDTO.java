@@ -11,6 +11,7 @@ public class VNPayPaymentDTO {
     private Integer packID;
     private Integer stationID;
     private Integer pinID;
+    private Integer total;  // Total credits/lượt from FE
     
     // VNPay fields
     private String vnp_TxnRef;           // Mã giao dịch
@@ -81,6 +82,9 @@ public class VNPayPaymentDTO {
 
     public Integer getPinID() { return pinID; }
     public void setPinID(Integer pinID) { this.pinID = pinID; }
+
+    public Integer getTotal() { return total; }
+    public void setTotal(Integer total) { this.total = total; }
 
     public String getVnp_TxnRef() { return vnp_TxnRef; }
     public void setVnp_TxnRef(String vnp_TxnRef) { this.vnp_TxnRef = vnp_TxnRef; }

@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import java.io.UnsupportedEncodingException;
+import java.sql.SQLException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -16,10 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.demo.dao.PaymentDAO;
+import com.example.demo.dao.VNPayPaymentDAO;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.VNPayPaymentDTO;
 import com.example.demo.dto.VNPayPaymentResponseDTO;
-import com.example.demo.dao.VNPayPaymentDAO;
 import com.example.demo.service.VNPayService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +42,8 @@ public class VNPayController {
     @Autowired
     private VNPayService vnpayService;
     
+    private final PaymentDAO paymentDAO = new PaymentDAO();
+    
     /**
      * Tạo VNPay payment với QR code - API mới cho frontend
      */
@@ -53,20 +57,28 @@ public class VNPayController {
             @Parameter(description = "Pin ID") @RequestParam(required = false) Integer pinID,
             @Parameter(description = "Amount in VND") @RequestParam Double amount,
             @Parameter(description = "Order description") @RequestParam String orderInfo,
+            @Parameter(description = "Total credits/lượt") @RequestParam(required = false) Integer total,
             HttpServletRequest request) {
         
         try {
+            // Validate userID exists in database
+            if (!paymentDAO.isUserExists(userID)) {
+                return ApiResponse.error("UserID " + userID + " không tồn tại trong hệ thống");
+            }
+            
             // Get client IP
             String ipAddress = getClientIpAddress(request);
             
             // Tạo payment với QR code
             VNPayPaymentResponseDTO paymentResponse = vnpayService.createPaymentWithQR(
-                userID, packID, stationID, pinID, amount, orderInfo, ipAddress);
+                userID, packID, stationID, pinID, amount, orderInfo, ipAddress, total);
             
             return ApiResponse.success("VNPay payment with QR code created successfully", paymentResponse);
             
         } catch (UnsupportedEncodingException e) {
             return ApiResponse.error("Failed to create payment: " + e.getMessage());
+        } catch (SQLException e) {
+            return ApiResponse.error("Database error: " + e.getMessage());
         } catch (Exception e) {
             return ApiResponse.error("Unexpected error: " + e.getMessage());
         }
@@ -85,11 +97,17 @@ public class VNPayController {
             @Parameter(description = "Pin ID") @RequestParam(required = false) Integer pinID,
             @Parameter(description = "Amount in VND") @RequestParam Double amount,
             @Parameter(description = "Order description") @RequestParam String orderInfo,
+            @Parameter(description = "Total credits/lượt") @RequestParam(required = false) Integer total,
             HttpServletRequest request) {
         
         try {
-            // Tạo payment record
-            String txnRef = vnpayService.createPayment(userID, packID, stationID, pinID, amount, orderInfo);
+            // Validate userID exists in database
+            if (!paymentDAO.isUserExists(userID)) {
+                return ApiResponse.error("UserID " + userID + " không tồn tại trong hệ thống");
+            }
+            
+            // Tạo payment record với total parameter
+            String txnRef = vnpayService.createPayment(userID, packID, stationID, pinID, amount, orderInfo, total);
             
             // Get client IP
             String ipAddress = getClientIpAddress(request);
@@ -101,6 +119,8 @@ public class VNPayController {
             
         } catch (UnsupportedEncodingException e) {
             return ApiResponse.error("Failed to create payment URL: " + e.getMessage());
+        } catch (SQLException e) {
+            return ApiResponse.error("Database error: " + e.getMessage());
         } catch (Exception e) {
             return ApiResponse.error("Unexpected error: " + e.getMessage());
         }
@@ -162,6 +182,9 @@ public class VNPayController {
                 
                 // Process payment response and update status
                 vnpayService.processPaymentResponse(vnpParams);
+                
+                // Handle VNPay callback for subscription updates
+                String callbackResult = vnpayService.handleVnPayCallback(vnpParams);
             }
             
             // Tạo HTML response
@@ -290,6 +313,9 @@ public class VNPayController {
                                 vnpParams.put("vnp_BankCode", bankCode);
                                 
                                 boolean updateSuccess = vnpayService.processPaymentResponse(vnpParams);
+                                
+                                // Handle VNPay callback for subscription updates
+                                String callbackResult = vnpayService.handleVnPayCallback(vnpParams);
                                 
                                 if (updateSuccess) {
                                     responseMap.put("RspCode", "00");

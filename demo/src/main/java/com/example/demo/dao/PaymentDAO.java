@@ -22,7 +22,7 @@ public class PaymentDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
         
-        String sql = "SELECT COUNT(1) FROM userDetails WHERE userID = ?";
+        String sql = "SELECT COUNT(1) FROM users WHERE userID = ?";
         
         try {
             conn = DBUtils.getConnection();

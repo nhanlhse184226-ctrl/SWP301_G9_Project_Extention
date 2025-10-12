@@ -46,11 +46,11 @@ public class VNPayService {
      * Tạo payment với QR code - Method mới cho frontend (với đầy đủ fields)
      */
     public VNPayPaymentResponseDTO createPaymentWithQR(Integer userID, Integer packID, Integer stationID, Integer pinID,
-                                                      Double amountVND, String orderInfo, String ipAddress) 
+                                                      Double amountVND, String orderInfo, String ipAddress, Integer total) 
             throws UnsupportedEncodingException {
         
         // Tạo payment record với đầy đủ fields
-        String txnRef = createPayment(userID, packID, stationID, pinID, amountVND, orderInfo);
+        String txnRef = createPayment(userID, packID, stationID, pinID, amountVND, orderInfo, total);
         
         // Build payment URL
         String paymentUrl = buildPaymentUrl(txnRef, amountVND, orderInfo, ipAddress);
@@ -87,13 +87,13 @@ public class VNPayService {
             throws UnsupportedEncodingException {
         
         // Gọi method mới với stationID và pinID = null
-        return createPaymentWithQR(userID, servicePackID, null, null, amountVND, orderInfo, ipAddress);
+        return createPaymentWithQR(userID, servicePackID, null, null, amountVND, orderInfo, ipAddress, null);
     }
     
     /**
      * Tạo payment record với đầy đủ fields và trả về transaction reference
      */
-    public String createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, Double amountVND, String orderInfo) {
+    public String createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, Double amountVND, String orderInfo, Integer total) {
         // Generate unique transaction reference
         String vnp_TxnRef = generateTxnRef();
         
@@ -102,7 +102,7 @@ public class VNPayService {
         
         // Save to database using DAO với đầy đủ fields
         try {
-            boolean created = vnpayPaymentDAO.createPayment(userID, packID, stationID, pinID, vnp_TxnRef, orderInfo, vnp_Amount, 0);
+            boolean created = vnpayPaymentDAO.createPayment(userID, packID, stationID, pinID, vnp_TxnRef, orderInfo, vnp_Amount, 0, total);
             if (!created) {
                 System.out.println("Warning: Failed to persist VNPay payment record for txnRef=" + vnp_TxnRef);
             }
@@ -113,6 +113,11 @@ public class VNPayService {
         System.out.println("Created VNPay payment: " + vnp_TxnRef + " for amount: " + amountVND + " VND");
         
         return vnp_TxnRef;
+    }
+
+    // Backward compatibility method
+    public String createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, Double amountVND, String orderInfo) {
+        return createPayment(userID, packID, stationID, pinID, amountVND, orderInfo, null);
     }
 
     /**
@@ -419,5 +424,67 @@ public class VNPayService {
         
         String signValue = hmacSHA512(VNPayConfig.VNP_HASH_SECRET, hashData.toString());
         return signValue.equals(vnp_SecureHash);
+    }
+
+    /**
+     * Handle VNPay callback - update payment status (Subscription will be updated by DB trigger)
+     */
+    public String handleVnPayCallback(Map<String, String> vnpParams) {
+        try {
+            System.out.println("=== VNPay Callback Handler Started ===");
+            System.out.println("Received params: " + vnpParams);
+            
+            // Verify signature
+            if (!verifyPaymentSignature(new HashMap<>(vnpParams))) {
+                System.out.println("❌ Invalid signature");
+                return "Invalid signature";
+            }
+            System.out.println("✅ Signature verified");
+
+            String txnRef = vnpParams.get("vnp_TxnRef");
+            String responseCode = vnpParams.get("vnp_ResponseCode");
+            String transactionStatus = vnpParams.get("vnp_TransactionStatus");
+            
+            System.out.println("TxnRef: " + txnRef + ", ResponseCode: " + responseCode + ", TransactionStatus: " + transactionStatus);
+
+            // Find payment by txnRef
+            VNPayPaymentDTO payment = vnpayPaymentDAO.getPaymentByTxnRef(txnRef);
+            if (payment == null) {
+                System.out.println("❌ Payment not found for txnRef: " + txnRef);
+                return "Payment not found";
+            }
+            System.out.println("✅ Payment found: userID=" + payment.getUserID() + ", total=" + payment.getTotal() + ", status=" + payment.getStatus());
+
+            // Idempotency: if already SUCCESS, don't apply again
+            if (payment.getStatus() == 1) {
+                System.out.println("⚠️ Payment already processed (status=1), skipping");
+                return "00"; // Already processed
+            }
+
+            // Determine new status
+            int status = "00".equals(responseCode) && "00".equals(transactionStatus) ? 1 : 2; // 1 success, 2 failed
+            System.out.println("New status determined: " + status);
+
+            // Update payment status (DB trigger will handle Subscription update automatically)
+            boolean updated = vnpayPaymentDAO.updatePaymentStatus(txnRef, status, vnpParams.get("vnp_TransactionNo"),
+                responseCode, transactionStatus, vnpParams.get("vnp_PayDate"), vnpParams.get("vnp_BankCode"));
+            if (!updated) {
+                System.out.println("❌ Failed to update payment status");
+                return "Failed to update payment";
+            }
+            System.out.println("✅ Payment status updated");
+            
+            if (status == 1 && payment.getTotal() != null && payment.getTotal() > 0 && payment.getUserID() != null) {
+                System.out.println("✅ DB Trigger will automatically update Subscription table for userID=" + payment.getUserID() + ", total=" + payment.getTotal());
+            }
+
+            System.out.println("=== VNPay Callback Handler Completed ===");
+            return "00"; // Success
+
+        } catch (Exception e) {
+            System.out.println("❌ Exception in handleVnPayCallback: " + e.getMessage());
+            e.printStackTrace();
+            return "Error processing callback: " + e.getMessage();
+        }
     }
 }
