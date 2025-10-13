@@ -58,7 +58,7 @@ public class VNPayService {
         // Tạo QR code chứa URL thanh toán - User quét QR → Mở browser → Thanh toán
         // Cách này ĐƠN GIẢN và HIỆU QUẢ nhất cho sandbox VNPay
         String qrCodeBase64 = vnpayQRCodeService.generatePaymentUrlQRCode(paymentUrl);
-        
+        //commmit cho tao
         System.out.println("Generated URL QR code for easy payment access");
         
         // Create response DTO
