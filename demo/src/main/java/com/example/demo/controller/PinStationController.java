@@ -1,10 +1,11 @@
 package com.example.demo.controller;
 
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -228,5 +229,81 @@ public class PinStationController {
         return ResponseEntity.ok(
             ApiResponse.success("Pin Station service is running", 
                 "Service ready to create and manage pin stations"));
+    }
+
+    // API để assign staff vào station
+    @PutMapping("/pinStation/assignStaff")
+    @Operation(summary = "Assign staff to station", description = "Assign a staff member (roleID=2) to manage a specific charging station. UserID comes from session, stationID is manual input.")
+    public ResponseEntity<ApiResponse<Object>> assignStaffToStation(
+            @Parameter(description = "User ID from session (must be staff with roleID=2)", required = true) @RequestParam Integer userID,
+            @Parameter(description = "Station ID to assign staff to", required = true) @RequestParam int stationID) {
+        try {
+            // Validation
+            if (stationID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Station ID must be greater than 0"));
+            }
+            
+            if (userID == null || userID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("User ID is required and must be greater than 0"));
+            }
+
+            boolean success = pinStationDAO.assignStaffToStation(stationID, userID);
+            
+            if (success) {
+                String message = "Staff (userID: " + userID + ") successfully assigned to station " + stationID;
+                return ResponseEntity.ok(ApiResponse.success(message, 
+                    "StationID: " + stationID + ", AssignedUserID: " + userID));
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Failed to assign staff to station. Station may not exist."));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Database error in assignStaffToStation: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Assignment failed: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("Error assigning staff to station: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error assigning staff to station: " + e.getMessage()));
+        }
+    }
+
+    // API để check staff đã được assign vào trạm nào
+    @GetMapping("/pinStation/checkStaffAssignment")
+    @Operation(summary = "Check staff assignment", description = "Check which station a staff member is currently assigned to.")
+    public ResponseEntity<ApiResponse<Object>> checkStaffAssignment(
+            @Parameter(description = "User ID to check assignment for", required = true) @RequestParam Integer userID) {
+        try {
+            // Validation
+            if (userID == null || userID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("User ID is required and must be greater than 0"));
+            }
+
+            Integer assignedStationID = pinStationDAO.getStaffAssignedStation(userID);
+            
+            if (assignedStationID != null) {
+                String message = "Staff (userID: " + userID + ") is assigned to station " + assignedStationID;
+                Map<String, Object> data = new HashMap<>();
+                data.put("userID", userID);
+                data.put("assignedStationID", assignedStationID);
+                return ResponseEntity.ok(ApiResponse.success(message, data));
+            } else {
+                String message = "Staff (userID: " + userID + ") is not assigned to any station";
+                Map<String, Object> data = new HashMap<>();
+                data.put("userID", userID);
+                data.put("assignedStationID", null);
+                return ResponseEntity.ok(ApiResponse.success(message, data));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Database error in checkStaffAssignment: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Check assignment failed: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("Error checking staff assignment: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error checking staff assignment: " + e.getMessage()));
+        }
     }
 }

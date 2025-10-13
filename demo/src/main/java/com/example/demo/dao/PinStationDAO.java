@@ -413,4 +413,144 @@ public class PinStationDAO {
         }
         return check_pinStation;
     }
+
+    // Method để kiểm tra user role
+    private int getUserRole(int userID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        int roleID = -1;
+
+        String sql = "SELECT roleID FROM users WHERE userID = ?";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, userID);
+                rs = ptm.executeQuery();
+
+                if (rs.next()) {
+                    roleID = rs.getInt("roleID");
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+
+        return roleID;
+    }
+
+    // Method để kiểm tra staff đã được assign vào trạm nào chưa
+    public Integer getStaffAssignedStation(int userID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT stationID FROM dbo.pinStation WHERE userID = ?";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, userID);
+                rs = ptm.executeQuery();
+
+                if (rs.next()) {
+                    return rs.getInt("stationID");
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } finally {
+            if (rs != null)
+                rs.close();
+            if (ptm != null)
+                ptm.close();
+            if (conn != null)
+                conn.close();
+        }
+
+        return null; // Staff chưa được assign vào trạm nào
+    }
+
+    // Method để assign staff vào station
+    public boolean assignStaffToStation(int stationID, Integer userID) throws SQLException {
+        // Validate station exists
+        if (!isStationExists(stationID)) {
+            throw new SQLException("Station with ID " + stationID + " does not exist");
+        }
+
+        // Validate user exists and has correct role if userID is provided
+        if (userID != null) {
+            PaymentDAO paymentDAO = new PaymentDAO();
+            if (!paymentDAO.isUserExists(userID)) {
+                throw new SQLException("User with ID " + userID + " does not exist");
+            }
+            
+            // Check if user has staff role (roleID = 2)
+            int userRole = getUserRole(userID);
+            if (userRole != 2) {
+                throw new SQLException("User with ID " + userID + " is not a staff member (roleID must be 2)");
+            }
+
+            // Check if staff is already assigned to another station
+            Integer currentStationID = getStaffAssignedStation(userID);
+            if (currentStationID != null && currentStationID != stationID) {
+                throw new SQLException("Staff with ID " + userID + " is already assigned to station " + currentStationID + ". Please unassign from the current station first.");
+            }
+        }
+
+        boolean success = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+
+        String sql = "UPDATE dbo.pinStation SET userID = ? WHERE stationID = ?";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                
+                if (userID != null) {
+                    ptm.setInt(1, userID);
+                } else {
+                    ptm.setNull(1, java.sql.Types.INTEGER);
+                }
+                ptm.setInt(2, stationID);
+
+                int rowsAffected = ptm.executeUpdate();
+                success = (rowsAffected > 0);
+
+                if (success) {
+                    String action = (userID != null) ? "assigned to user " + userID : "unassigned";
+                    System.out.println("Station " + stationID + " successfully " + action);
+                } else {
+                    System.out.println("Failed to assign staff to station " + stationID);
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            System.out.println("Database driver not found: " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("Database error in assignStaffToStation: " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            System.out.println("Unexpected error in assignStaffToStation: " + e.getMessage());
+            throw new SQLException("Failed to assign staff to station: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+
+        return success;
+    }
 }
