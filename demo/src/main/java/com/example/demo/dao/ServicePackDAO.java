@@ -47,7 +47,7 @@ public class ServicePackDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT COUNT(*) FROM ServicePack WHERE packID = ?";
+        String sql = "SELECT packID FROM ServicePack WHERE packID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -56,9 +56,7 @@ public class ServicePackDAO {
                 ptm.setInt(1, packID);
                 rs = ptm.executeQuery();
 
-                if (rs.next()) {
-                    return rs.getInt(1) > 0;
-                }
+                return rs.next(); // Trả về true nếu có record, false nếu không
             }
         } catch (ClassNotFoundException e) {
             throw new SQLException("Database driver not found: " + e.getMessage());
@@ -77,7 +75,7 @@ public class ServicePackDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT COUNT(*) FROM ServicePack WHERE packName = ?";
+        String sql = "SELECT packName FROM ServicePack WHERE packName = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -86,9 +84,7 @@ public class ServicePackDAO {
                 ptm.setString(1, packName);
                 rs = ptm.executeQuery();
 
-                if (rs.next()) {
-                    return rs.getInt(1) > 0;
-                }
+                return rs.next(); // Trả về true nếu có record, false nếu không
             }
         } catch (ClassNotFoundException e) {
             throw new SQLException("Database driver not found: " + e.getMessage());
@@ -192,27 +188,17 @@ public class ServicePackDAO {
             throw new SQLException("Price and total must be non-negative");
         }
 
-        // Check duplicate pack name (exclude current pack)
+        // Check duplicate pack name - không cho update thành tên đã tồn tại
+        if (isPackNameExists(servicePack.getPackName().trim())) {
+            throw new SQLException("Service pack name '" + servicePack.getPackName() + "' already exists");
+        }
+
         Connection conn = null;
         PreparedStatement ptm = null;
-        ResultSet rs = null;
-
-        String checkSql = "SELECT COUNT(*) FROM ServicePack WHERE packName = ? AND packID != ?";
 
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(checkSql);
-                ptm.setString(1, servicePack.getPackName().trim());
-                ptm.setInt(2, packID);
-                rs = ptm.executeQuery();
-
-                if (rs.next() && rs.getInt(1) > 0) {
-                    throw new SQLException("Service pack name '" + servicePack.getPackName() + "' already exists");
-                }
-
-                rs.close();
-                ptm.close();
 
                 // Perform update
                 String updateSql = "UPDATE ServicePack SET packName = ?, status = ?, description = ?, total = ?, price = ? WHERE packID = ?";
@@ -245,7 +231,6 @@ public class ServicePackDAO {
             System.out.println("Unexpected error in updateServicePack: " + e.getMessage());
             throw new SQLException("Failed to update service pack: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
             if (ptm != null) ptm.close();
             if (conn != null) conn.close();
         }
