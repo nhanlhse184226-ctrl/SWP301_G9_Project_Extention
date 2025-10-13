@@ -4,6 +4,7 @@ public class PinSlotDTO {
     private int pinID;
     private int pinPercent;
     private int pinStatus;
+    private int pinHealth; // Thêm trường pinHealth mới
     private int status; // Thêm trường status mới
     private Integer userID; // Thêm userID cho chức năng reserve
     private int stationID; // Thêm stationID để biết pin thuộc station nào
@@ -12,6 +13,7 @@ public class PinSlotDTO {
         this.pinID = 0;
         this.pinPercent = 0;
         this.pinStatus = 0;
+        this.pinHealth = 0;
         this.status = 0;
         this.userID = null;
         this.stationID = 0;
@@ -21,6 +23,7 @@ public class PinSlotDTO {
         this.pinID = pinID;
         this.pinPercent = pinPercent;
         this.pinStatus = pinStatus;
+        this.pinHealth = 0; // Default value
         this.status = status;
         this.userID = userID;
         this.stationID = 0;
@@ -30,6 +33,18 @@ public class PinSlotDTO {
     public PinSlotDTO(int pinID, int pinPercent, int pinStatus, int status, Integer userID, int stationID) {
         this.pinID = pinID;
         this.pinPercent = pinPercent;
+        this.pinStatus = pinStatus;
+        this.pinHealth = 0; // Default value
+        this.status = status;
+        this.userID = userID;
+        this.stationID = stationID;
+    }
+    
+    // Constructor với đầy đủ fields bao gồm pinHealth
+    public PinSlotDTO(int pinID, int pinPercent, int pinHealth, int pinStatus, int status, Integer userID, int stationID) {
+        this.pinID = pinID;
+        this.pinPercent = pinPercent;
+        this.pinHealth = pinHealth;
         this.pinStatus = pinStatus;
         this.status = status;
         this.userID = userID;
@@ -58,6 +73,14 @@ public class PinSlotDTO {
 
     public void setPinStatus(int pinStatus) {
         this.pinStatus = pinStatus;
+    }
+    
+    public int getPinHealth() {
+        return pinHealth;
+    }
+
+    public void setPinHealth(int pinHealth) {
+        this.pinHealth = pinHealth;
     }
     
     public int getStatus() {

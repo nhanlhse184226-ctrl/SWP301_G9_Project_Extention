@@ -118,10 +118,11 @@ public class PinSlotController {
 
     // API để update PinSlot theo pinID (Method 1: Request Parameters)
     @PutMapping("/pinSlot/updateSlot")
-    @Operation(summary = "Update slot charging level", description = "Manually update the charging percentage (0-100%) of a specific pin slot.")
+    @Operation(summary = "Update slot charging level and health", description = "Manually update the charging percentage (0-100%) and health status (0-100%) of a specific pin slot.")
     public ResponseEntity<ApiResponse<Object>> updatePinSlot(
             @Parameter(description = "Pin slot ID to update", required = true) @RequestParam int pinID,
-            @Parameter(description = "New charging percentage (0-100)", required = true, example = "85") @RequestParam int pinPercent) {
+            @Parameter(description = "New charging percentage (0-100)", required = true, example = "85") @RequestParam int pinPercent,
+            @Parameter(description = "Pin health percentage (0-100)", required = true, example = "90") @RequestParam int pinHealth) {
 
         try {
             // Validate pinPercent (0-100)
@@ -130,15 +131,21 @@ public class PinSlotController {
                         .body(ApiResponse.error("Pin percent must be between 0 and 100"));
             }
 
+            // Validate pinHealth (0-100)
+            if (pinHealth < 0 || pinHealth > 100) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Pin health must be between 0 and 100"));
+            }
+
             // Gọi DAO để update
-            boolean success = pinSlotDAO.updatePinSlot(pinID, pinPercent);
+            boolean success = pinSlotDAO.updatePinSlot(pinID, pinPercent, pinHealth);
 
             if (success) {
                 String statusMessage = (pinPercent < 100) ? " (Status: 0 - unvaliable)" : " (Status: 1 - valiable)";
 
                 return ResponseEntity.ok(
                         ApiResponse.success("Pin slot updated successfully",
-                                "PinID: " + pinID + " updated to " + pinPercent + "%" + statusMessage));
+                                "PinID: " + pinID + " updated to " + pinPercent + "%, Health: " + pinHealth + "%" + statusMessage));
             } else {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("Failed to update pin slot. PinID may not exist."));

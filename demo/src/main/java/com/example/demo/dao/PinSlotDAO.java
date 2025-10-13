@@ -12,7 +12,7 @@ import com.example.demo.dto.PinSlotDTO;
 
 public class PinSlotDAO {
     private static final String UPDATE = "EXEC dbo.UpdatePinPercent";
-    private static final String LIST_PIN = "SELECT pinID, pinPercent, pinStatus, status, userID, stationID FROM pinSlot";
+    private static final String LIST_PIN = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, userID, stationID FROM pinSlot";
 
     // Thêm method declaration
     public boolean updatePinPercent() throws SQLException {
@@ -57,6 +57,7 @@ public class PinSlotDAO {
                 while (rs.next()) {
                     int pinID = rs.getInt("pinID");
                     int pinPercent = rs.getInt("pinPercent");
+                    int pinHealth = rs.getInt("pinHealth");
                     int pinStatus = rs.getInt("pinStatus");
                     int status = rs.getInt("status");
 
@@ -64,9 +65,8 @@ public class PinSlotDAO {
                     Integer userID = rs.getObject("userID", Integer.class);
                     int stationID = rs.getInt("stationID");
 
-                    // Sử dụng constructor với 6 fields
-                    listPinSlot
-                            .add(new PinSlotDTO(pinID, pinPercent, pinStatus, status, userID, stationID));
+                    // Sử dụng constructor với đầy đủ fields bao gồm pinHealth
+                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, userID, stationID));
                 }
             }
         } catch (Exception e) {
@@ -93,7 +93,7 @@ public class PinSlotDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT pinID, pinPercent, pinStatus, status, userID, stationID FROM dbo.pinSlot WHERE stationID = ?";
+        String sql = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, userID, stationID FROM dbo.pinSlot WHERE stationID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -105,6 +105,7 @@ public class PinSlotDAO {
                 while (rs.next()) {
                     int pinID = rs.getInt("pinID");
                     int pinPercent = rs.getInt("pinPercent");
+                    int pinHealth = rs.getInt("pinHealth");
                     int pinStatus = rs.getInt("pinStatus");
                     int status = rs.getInt("status");
 
@@ -112,9 +113,8 @@ public class PinSlotDAO {
                     Integer userID = rs.getObject("userID", Integer.class);
                     int stationIDFromDB = rs.getInt("stationID");
 
-                    // Sử dụng constructor với 6 fields
-                    listPinSlot.add(
-                            new PinSlotDTO(pinID, pinPercent, pinStatus, status, userID, stationIDFromDB));
+                    // Sử dụng constructor với đầy đủ fields bao gồm pinHealth
+                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, userID, stationIDFromDB));
                 }
             }
         } catch (Exception e) {
@@ -135,12 +135,12 @@ public class PinSlotDAO {
     }
 
     // Method để update PinSlot theo pinID - cho Update Pin Slot API
-    public boolean updatePinSlot(int pinID, int pinPercent) throws SQLException {
+    public boolean updatePinSlot(int pinID, int pinPercent, int pinHealth) throws SQLException {
         boolean success = false;
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        String sql = "UPDATE dbo.pinSlot SET pinPercent = ? WHERE pinID = ?";
+        String sql = "UPDATE dbo.pinSlot SET pinPercent = ?, pinHealth = ? WHERE pinID = ?";
         int newStatus = (pinPercent < 100) ? 0 : 1;
 
         try {
@@ -148,12 +148,13 @@ public class PinSlotDAO {
             if (conn != null) {
                 ptm = conn.prepareStatement(sql);
                 ptm.setInt(1, pinPercent);
-                ptm.setInt(2, pinID);
+                ptm.setInt(2, pinHealth);
+                ptm.setInt(3, pinID);
 
                 int rowsAffected = ptm.executeUpdate();
                 success = (rowsAffected > 0);
 
-                System.out.println("Update PinSlot - PinID: " + pinID + ", NewPercent: " + pinPercent + "%, Status: "
+                System.out.println("Update PinSlot - PinID: " + pinID + ", NewPercent: " + pinPercent + "%, PinHealth: " + pinHealth + "%, Status: "
                         + newStatus + ", Rows affected: " + rowsAffected);
             }
         } catch (Exception e) {
