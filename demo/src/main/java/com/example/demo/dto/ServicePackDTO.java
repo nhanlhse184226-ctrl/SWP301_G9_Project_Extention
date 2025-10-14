@@ -34,6 +34,13 @@ public class ServicePackDTO {
         this.createDate = createDate;
     }
 
+    public ServicePackDTO(String packName, String description, int total, int price) {
+        this.packName = packName;
+        this.description = description;
+        this.total = total;
+        this.price = price;
+    }
+
     // Getters and Setters
     public int getPackID() {
         return packID;

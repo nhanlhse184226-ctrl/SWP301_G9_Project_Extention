@@ -10,6 +10,7 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.example.demo.config.VNPayConfig;
 
 import java.util.List;
 
@@ -34,7 +35,7 @@ public class SwaggerConfig {
                                 .url("http://localhost:" + serverPort)
                                 .description("Local Development Server"),
                         new Server()
-                                .url("https://bb2352c6ad88.ngrok-free.app")
+                                .url(VNPayConfig.ngrokUrl)
                                 .description("Ngrok Tunnel Server"),
                         new Server()
                                 .url("https://swp301-g9-project.onrender.com")

@@ -274,7 +274,7 @@ public class PinSlotDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        String unreserveSQL = "UPDATE dbo.pinSlot SET status = 0, userID = NULL WHERE pinID = ?";
+        String unreserveSQL = "UPDATE dbo.pinSlot SET status = 1, userID = NULL WHERE pinID = ?";
         String checkStatusSQL = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
 
         try {
@@ -394,14 +394,104 @@ public class PinSlotDAO {
                     System.out.println("Failed to swap pin data - rolling back transaction");
                 }
             }
-        } catch (ClassNotFoundException e) {
-            if (conn != null) conn.rollback();
-            System.out.println("ClassNotFoundException in swapVehiclePinSlotData: " + e.getMessage());
-            throw new SQLException("Database driver not found");
-        } catch (SQLException e) {
-            if (conn != null) conn.rollback();
-            System.out.println("SQLException in swapVehiclePinSlotData: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Exception in swapVehiclePinSlotData: " + e.getMessage());
             throw new SQLException("Error swapping vehicle pin slot data: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+        return success;
+    }
+
+    // Method để swap pin data giữa 2 PinSlot - dựa trên format swapVehiclePinSlotData
+    public boolean swapPinSlotData(int pinSlotID1, int pinSlotID2) throws SQLException {
+        boolean success = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        // SQL để lấy dữ liệu từ 2 PinSlot
+        String getPinSlot1SQL = "SELECT pinPercent, pinHealth FROM pinSlot WHERE pinID = ?";
+        String getPinSlot2SQL = "SELECT pinPercent, pinHealth FROM pinSlot WHERE pinID = ?";
+        
+        // SQL để update dữ liệu sau khi swap
+        String updatePinSlot1SQL = "UPDATE pinSlot SET pinPercent = ?, pinHealth = ? WHERE pinID = ?";
+        String updatePinSlot2SQL = "UPDATE pinSlot SET pinPercent = ?, pinHealth = ? WHERE pinID = ?";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                // Bắt đầu transaction
+                conn.setAutoCommit(false);
+
+                // Lấy dữ liệu PinSlot 1 (SOH1, SOC1)
+                ptm = conn.prepareStatement(getPinSlot1SQL);
+                ptm.setInt(1, pinSlotID1);
+                rs = ptm.executeQuery();
+                
+                int pinSlot1PinPercent = 0, pinSlot1PinHealth = 0;
+                if (rs.next()) {
+                    pinSlot1PinPercent = rs.getInt("pinPercent");
+                    pinSlot1PinHealth = rs.getInt("pinHealth");
+                } else {
+                    throw new SQLException("PinSlot ID " + pinSlotID1 + " not found");
+                }
+                rs.close();
+                ptm.close();
+
+                // Lấy dữ liệu PinSlot 2 (SOH2, SOC2)
+                ptm = conn.prepareStatement(getPinSlot2SQL);
+                ptm.setInt(1, pinSlotID2);
+                rs = ptm.executeQuery();
+                
+                int pinSlot2PinPercent = 0, pinSlot2PinHealth = 0;
+                if (rs.next()) {
+                    pinSlot2PinPercent = rs.getInt("pinPercent");
+                    pinSlot2PinHealth = rs.getInt("pinHealth");
+                } else {
+                    throw new SQLException("PinSlot ID " + pinSlotID2 + " not found");
+                }
+                rs.close();
+                ptm.close();
+
+                // Swap: PinSlot1 lưu SOH2 SOC2, PinSlot2 lưu SOH1 SOC1
+                ptm = conn.prepareStatement(updatePinSlot1SQL);
+                ptm.setInt(1, pinSlot2PinPercent); // PinSlot1 nhận pinPercent từ PinSlot2
+                ptm.setInt(2, pinSlot2PinHealth); // PinSlot1 nhận pinHealth từ PinSlot2
+                ptm.setInt(3, pinSlotID1);
+                int pinSlot1RowsAffected = ptm.executeUpdate();
+                ptm.close();
+
+                ptm = conn.prepareStatement(updatePinSlot2SQL);
+                ptm.setInt(1, pinSlot1PinPercent); // PinSlot2 nhận pinPercent từ PinSlot1
+                ptm.setInt(2, pinSlot1PinHealth); // PinSlot2 nhận pinHealth từ PinSlot1
+                ptm.setInt(3, pinSlotID2);
+                int pinSlot2RowsAffected = ptm.executeUpdate();
+
+                // Commit transaction nếu cả 2 update thành công
+                if (pinSlot1RowsAffected > 0 && pinSlot2RowsAffected > 0) {
+                    conn.commit();
+                    success = true;
+                    System.out.println("Pin data swapped successfully between PinSlot ID " + pinSlotID1 + " and PinSlot ID " + pinSlotID2);
+                    System.out.println("PinSlot1: " + pinSlot1PinPercent + "%, " + pinSlot1PinHealth + "% -> " + pinSlot2PinPercent + "%, " + pinSlot2PinHealth + "%");
+                    System.out.println("PinSlot2: " + pinSlot2PinPercent + "%, " + pinSlot2PinHealth + "% -> " + pinSlot1PinPercent + "%, " + pinSlot1PinHealth + "%");
+                } else {
+                    conn.rollback();
+                    System.out.println("Failed to swap pin data between PinSlots - rolling back transaction");
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Exception in swapPinSlotData: " + e.getMessage());
+            throw new SQLException("Error swapping pin slot data: " + e.getMessage());
         } finally {
             if (rs != null) {
                 rs.close();

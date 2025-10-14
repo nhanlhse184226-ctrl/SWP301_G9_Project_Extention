@@ -151,7 +151,7 @@ public class TransactionController {
     @Operation(summary = "Update transaction status", description = "Update the status of a specific transaction (0=pending, 1=completed, 2=failed).")
     public ResponseEntity<ApiResponse<Object>> updateTransactionStatus(
             @Parameter(description = "Transaction ID to update", required = true) @RequestParam int transactionID,
-            @Parameter(description = "New status (0=pending, 1=completed, 2=failed)", required = true) @RequestParam int status) {
+            @Parameter(description = "New status (0=pending, 1=completed, 2=expired, 3=canceled)", required = true) @RequestParam int status) {
 
         try {
             // Validation

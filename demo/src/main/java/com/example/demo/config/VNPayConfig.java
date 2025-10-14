@@ -8,11 +8,11 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class VNPayConfig {
-    
+    public static final String ngrokUrl = "https://408c73d81ad9.ngrok-free.app";
     // VNPay Sandbox Environment - Test với DEMO credentials từ documentation
     public static final String VNP_PAY_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-    public static final String VNP_RETURN_URL = "http://localhost:8080/vnpay/return";
-    public static final String VNP_IPN_URL = "http://localhost:8080/vnpay/ipn"; // IPN URL cần gửi cho VNPay
+    public static final String VNP_RETURN_URL = ngrokUrl + "/vnpay/return";
+    public static final String VNP_IPN_URL = ngrokUrl + "/vnpay/ipn"; // IPN URL cần gửi cho VNPay
     public static final String VNP_TMN_CODE = "8I1PNFUT"; // DEMO Terminal ID từ VNPay documentation
     public static final String VNP_HASH_SECRET = "7UJW8OWB93IDXHQOH4MR4DJ9YMVBECXI"; // DEMO Secret Key từ VNPay documentation
     

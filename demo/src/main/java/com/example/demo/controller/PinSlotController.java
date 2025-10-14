@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -223,4 +224,43 @@ public class PinSlotController {
         }
     }
 
+    // API để swap pin data giữa 2 PinSlot
+    @PostMapping("/pinSlot/swap")
+    @Operation(summary = "Swap pin data between two PinSlots", description = "Exchange pinPercent and pinHealth values between two pin slots")
+    public ResponseEntity<ApiResponse<Object>> swapPinSlotData(
+            @Parameter(description = "First Pin Slot ID to swap data with", required = true) @RequestParam int pinSlotID1,
+            @Parameter(description = "Second Pin Slot ID to swap data with", required = true) @RequestParam int pinSlotID2) {
+        try {
+            // Validation
+            if (pinSlotID1 <= 0) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("First Pin Slot ID must be greater than 0"));
+            }
+            if (pinSlotID2 <= 0) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Second Pin Slot ID must be greater than 0"));
+            }
+            if (pinSlotID1 == pinSlotID2) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Cannot swap pin data with the same PinSlot. Pin Slot IDs must be different"));
+            }
+
+            boolean success = pinSlotDAO.swapPinSlotData(pinSlotID1, pinSlotID2);
+            if (success) {
+                return ResponseEntity.ok(ApiResponse.success("Pin data swapped successfully",
+                        "pinPercent and pinHealth values have been exchanged between PinSlot ID " + pinSlotID1 + " and PinSlot ID " + pinSlotID2));
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Failed to swap pin data. Check if both PinSlots exist"));
+            }
+        } catch (SQLException e) {
+            System.out.println("Database error in swapPinSlotData: " + e.getMessage());
+            return ResponseEntity.status(500).body(ApiResponse.error("Database error: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("Unexpected error in swapPinSlotData: " + e.getMessage());
+            return ResponseEntity.status(500).body(ApiResponse.error("Unexpected error occurred: " + e.getMessage()));
+        }
+    }
+
+    
 }

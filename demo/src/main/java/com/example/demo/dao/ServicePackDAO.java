@@ -138,7 +138,7 @@ public class ServicePackDAO {
         return success;
     }
 
-    // Method để update ServicePack (chỉ admin)
+    // Method để update ServicePack (chỉ admin) - Update toàn bộ thông tin
     public boolean updateServicePack(int packID, ServicePackDTO servicePack, int adminUserID) throws SQLException {
         // Validate admin permission
         if (!isAdminUser(adminUserID)) {
@@ -158,11 +158,6 @@ public class ServicePackDAO {
             throw new SQLException("Price and total must be non-negative");
         }
 
-        // Check duplicate pack name - không cho update thành tên đã tồn tại
-        if (isPackNameExists(servicePack.getPackName().trim())) {
-            throw new SQLException("Service pack name '" + servicePack.getPackName() + "' already exists");
-        }
-
         Connection conn = null;
         PreparedStatement ptm = null;
 
@@ -171,22 +166,64 @@ public class ServicePackDAO {
             if (conn != null) {
 
                 // Perform update
-                String updateSql = "UPDATE ServicePack SET packName = ?, status = ?, description = ?, total = ?, price = ? WHERE packID = ?";
+                String updateSql = "UPDATE ServicePack SET packName = ?, description = ?, total = ?, price = ? WHERE packID = ?";
                 ptm = conn.prepareStatement(updateSql);
                 ptm.setString(1, servicePack.getPackName().trim());
-                ptm.setInt(2, servicePack.getStatus());
-                ptm.setString(3, servicePack.getDescription());
-                ptm.setInt(4, servicePack.getTotal());
-                ptm.setInt(5, servicePack.getPrice());
-                ptm.setInt(6, packID);
+                ptm.setString(2, servicePack.getDescription());
+                ptm.setInt(3, servicePack.getTotal());
+                ptm.setInt(4, servicePack.getPrice());
+                ptm.setInt(5, packID);
 
                 int rowsAffected = ptm.executeUpdate();
                 boolean success = (rowsAffected > 0);
 
                 System.out.println("Update ServicePack - ID: " + packID + 
                                  ", Name: " + servicePack.getPackName() + 
-                                 ", Status: " + servicePack.getStatus() + 
                                  ", Price: " + servicePack.getPrice() + 
+                                 ", Rows affected: " + rowsAffected);
+
+                return success;
+            }
+        } catch (Exception e) {
+            System.out.println("Unexpected error in updateServicePack: " + e.getMessage());
+            throw new SQLException("Failed to update service pack: " + e.getMessage());
+        } finally {
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+
+        return false;
+    }
+
+    // Method để update chỉ status của ServicePack (chỉ admin)
+    public boolean updateServicePackStatus(int packID, int status, int adminUserID) throws SQLException {
+        // Validate admin permission
+        if (!isAdminUser(adminUserID)) {
+            throw new SQLException("Access denied. Only admin users (roleID=3) can update service pack status");
+        }
+
+        // Validate status
+        if (status < 0 || status > 1) {
+            throw new SQLException("Status must be 0 (inactive) or 1 (active)");
+        }
+
+        Connection conn = null;
+        PreparedStatement ptm = null;
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                String updateSql = "UPDATE ServicePack SET status = ? WHERE packID = ?";
+                ptm = conn.prepareStatement(updateSql);
+                ptm.setInt(1, status);
+                ptm.setInt(2, packID);
+
+                int rowsAffected = ptm.executeUpdate();
+                boolean success = (rowsAffected > 0);
+
+                String statusText = (status == 0) ? "inactive" : "active";
+                System.out.println("Update ServicePack Status - ID: " + packID + 
+                                 ", New Status: " + status + " (" + statusText + ")" +
                                  ", Rows affected: " + rowsAffected);
 
                 return success;
@@ -195,11 +232,11 @@ public class ServicePackDAO {
             System.out.println("Database driver not found: " + e.getMessage());
             throw new SQLException("Database driver not found: " + e.getMessage());
         } catch (SQLException e) {
-            System.out.println("Database error in updateServicePack: " + e.getMessage());
+            System.out.println("Database error in updateServicePackStatus: " + e.getMessage());
             throw e;
         } catch (Exception e) {
-            System.out.println("Unexpected error in updateServicePack: " + e.getMessage());
-            throw new SQLException("Failed to update service pack: " + e.getMessage());
+            System.out.println("Unexpected error in updateServicePackStatus: " + e.getMessage());
+            throw new SQLException("Failed to update service pack status: " + e.getMessage());
         } finally {
             if (ptm != null) ptm.close();
             if (conn != null) conn.close();

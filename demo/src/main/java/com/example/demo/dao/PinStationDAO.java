@@ -219,6 +219,60 @@ public class PinStationDAO {
         return station;
     }
 
+    // Method để lấy danh sách PinStation theo userID
+    public List<PinStationDTO> getStationsByUserID(int userID) throws SQLException {
+        List<PinStationDTO> listPinStation = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT stationID, stationName, location, status, x, y, userID, createAt " +
+                    "FROM dbo.pinStation WHERE userID = ? ORDER BY createAt DESC";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, userID);
+                rs = ptm.executeQuery();
+
+                while (rs.next()) {
+                    PinStationDTO station = new PinStationDTO(
+                            rs.getInt("stationID"),
+                            rs.getString("stationName"),
+                            rs.getString("location"),
+                            rs.getInt("status"),
+                            rs.getTimestamp("createAt"),
+                            rs.getFloat("x"),
+                            rs.getFloat("y"),
+                            rs.getObject("userID", Integer.class));  // Handle nullable Integer
+                    
+                    listPinStation.add(station);
+                }
+
+                System.out.println("getStationsByUserID: Retrieved " + listPinStation.size() + " stations for user " + userID);
+            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("getStationsByUserID error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("getStationsByUserID error: " + e.getMessage());
+            throw new SQLException("Error getting stations for user: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+
+        return listPinStation;
+    }
+
     // Method để kiểm tra duplicate station name khi update (loại trừ chính nó)
     public boolean isStationNameExistsForUpdate(String stationName, int excludeStationID) throws SQLException {
         Connection conn = null;

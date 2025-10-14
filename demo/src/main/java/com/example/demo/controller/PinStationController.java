@@ -147,6 +147,39 @@ public class PinStationController {
         }
     }
     
+    // API để lấy danh sách PinStation theo userID
+    @GetMapping("/pinStation/getByUser")
+    @Operation(summary = "Get charging stations by user ID", description = "Retrieve all charging stations assigned to a specific user, ordered by creation date (newest first).")
+    public ResponseEntity<ApiResponse<Object>> getStationsByUserID(
+            @Parameter(description = "User ID to get stations for", required = true) @RequestParam int userID) {
+        try {
+            // Validate input
+            if (userID <= 0) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("User ID must be greater than 0"));
+            }
+            
+            List<PinStationDTO> listPinStation = pinStationDAO.getStationsByUserID(userID);
+            
+            if (listPinStation != null && !listPinStation.isEmpty()) {
+                return ResponseEntity.ok(
+                    ApiResponse.success("Get stations for user successfully", listPinStation));
+            } else {
+                return ResponseEntity.ok(
+                    ApiResponse.success("No stations found for user ID: " + userID, listPinStation));
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Database error in getStationsByUserID: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(ApiResponse.error("Database error occurred: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("Error getting stations for user: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(ApiResponse.error("Error getting stations for user: " + e.getMessage()));
+        }
+    }
+    
     // API để update PinStation
     @PutMapping("/pinStation/update")
     @Operation(summary = "Update charging station", description = "Update charging station information including name, location, status, and coordinates.")

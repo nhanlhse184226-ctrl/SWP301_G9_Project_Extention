@@ -30,12 +30,12 @@ public class ServicePackController {
     @PostMapping("/servicePack/create")
     @Operation(summary = "Create service pack", description = "Create a new service pack. Only admin users (roleID=3) can access this API.")
     public ResponseEntity<ApiResponse<Object>> createServicePack(
-            @Parameter(description = "Admin user ID (must have roleID=3)", required = true, example = "1") @RequestParam int adminUserID,
-            @Parameter(description = "Service pack name", required = true, example = "Premium Package") @RequestParam String packName,
-            @Parameter(description = "Service pack status (0=inactive, 1=active)", required = true, example = "1") @RequestParam int status,
-            @Parameter(description = "Service pack description", required = false, example = "Premium service with extra features") @RequestParam(required = false) String description,
-            @Parameter(description = "Total amount/quantity", required = true, example = "100") @RequestParam int total,
-            @Parameter(description = "Price in VND", required = true, example = "500000") @RequestParam int price) {
+            @Parameter(description = "Admin user ID (must have roleID=3)", required = true) @RequestParam int adminUserID,
+            @Parameter(description = "Service pack name", required = true) @RequestParam String packName,
+            @Parameter(description = "Service pack status (0=inactive, 1=active)", required = true) @RequestParam int status,
+            @Parameter(description = "Service pack description", required = false) @RequestParam(required = false) String description,
+            @Parameter(description = "Total amount/quantity", required = true) @RequestParam int total,
+            @Parameter(description = "Price in VND", required = true) @RequestParam int price) {
         
         try {
             // Validation
@@ -93,14 +93,13 @@ public class ServicePackController {
     @PutMapping("/servicePack/update")
     @Operation(summary = "Update service pack", description = "Update an existing service pack. Only admin users (roleID=3) can access this API.")
     public ResponseEntity<ApiResponse<Object>> updateServicePack(
-            @Parameter(description = "Service pack ID to update", required = true, example = "1") @RequestParam int packID,
-            @Parameter(description = "Admin user ID (must have roleID=3)", required = true, example = "1") @RequestParam int adminUserID,
-            @Parameter(description = "Service pack name", required = true, example = "Premium Package Updated") @RequestParam String packName,
-            @Parameter(description = "Service pack status (0=inactive, 1=active)", required = true, example = "1") @RequestParam int status,
-            @Parameter(description = "Service pack description", required = false, example = "Updated premium service description") @RequestParam(required = false) String description,
-            @Parameter(description = "Total amount/quantity", required = true, example = "150") @RequestParam int total,
-            @Parameter(description = "Price in VND", required = true, example = "600000") @RequestParam int price) {
-        
+            @Parameter(description = "Service pack ID to update", required = true) @RequestParam int packID,
+            @Parameter(description = "Admin user ID (must have roleID=3)", required = true) @RequestParam int adminUserID,
+            @Parameter(description = "Service pack name") @RequestParam(required = false) String packName,
+            @Parameter(description = "Service pack description", required = false) @RequestParam(required = false) String description,
+            @Parameter(description = "Total amount/quantity", required = true) @RequestParam int total,
+            @Parameter(description = "Price in VND", required = true) @RequestParam int price) {
+
         try {
             // Validation
             if (packID <= 0) {
@@ -118,11 +117,6 @@ public class ServicePackController {
                         .body(ApiResponse.error("Pack name cannot be null or empty"));
             }
 
-            if (status < 0 || status > 1) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Status must be 0 (inactive) or 1 (active)"));
-            }
-
             if (total < 0) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("Total must be non-negative"));
@@ -134,7 +128,7 @@ public class ServicePackController {
             }
 
             // Tạo ServicePackDTO với data mới
-            ServicePackDTO servicePack = new ServicePackDTO(packName, status, description, total, price);
+            ServicePackDTO servicePack = new ServicePackDTO(packName, description, total, price);
 
             // Gọi DAO để update service pack
             boolean success = servicePackDAO.updateServicePack(packID, servicePack, adminUserID);
@@ -157,6 +151,56 @@ public class ServicePackController {
             System.out.println("Error updating service pack: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("Error updating service pack: " + e.getMessage()));
+        }
+    }
+
+    // API để update chỉ status của ServicePack (chỉ admin)
+    @PutMapping("/servicePack/updateStatus")
+    @Operation(summary = "Update service pack status only", description = "Update only the status of an existing service pack. Only admin users (roleID=3) can access this API.")
+    public ResponseEntity<ApiResponse<Object>> updateServicePackStatus(
+            @Parameter(description = "Service pack ID to update", required = true) @RequestParam int packID,
+            @Parameter(description = "Admin user ID (must have roleID=3)", required = true) @RequestParam int adminUserID,
+            @Parameter(description = "New service pack status (0=inactive, 1=active)", required = true) @RequestParam int status) {
+        
+        try {
+            // Validation
+            if (packID <= 0) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Pack ID must be greater than 0"));
+            }
+
+            if (adminUserID <= 0) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Admin user ID must be greater than 0"));
+            }
+
+            if (status < 0 || status > 1) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Status must be 0 (inactive) or 1 (active)"));
+            }
+
+            // Gọi DAO để update chỉ status
+            boolean success = servicePackDAO.updateServicePackStatus(packID, status, adminUserID);
+
+            if (success) {
+                // Lấy updated service pack để trả về
+                ServicePackDTO updatedPack = servicePackDAO.getServicePackById(packID);
+                String statusText = (status == 0) ? "inactive" : "active";
+                String message = "Service pack status updated successfully to " + statusText;
+                return ResponseEntity.ok(ApiResponse.success(message, updatedPack));
+            } else {
+                return ResponseEntity.internalServerError()
+                        .body(ApiResponse.error("Failed to update service pack status"));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Database error in updateServicePackStatus: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Database error: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("Error updating service pack status: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error updating service pack status: " + e.getMessage()));
         }
     }
 
