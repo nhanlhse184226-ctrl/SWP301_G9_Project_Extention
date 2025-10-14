@@ -20,7 +20,7 @@ public class TransactionDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT transactionID, userID, amount, pack, stationID, pinID, status, createAt, expireAt FROM dbo.Transaction";
+        String sql = "SELECT transactionID, userID, amount, pack, stationID, pinID, status, createAt, expireAt FROM [TestSchedule].[dbo].[Transaction]";
 
         try {
             conn = DBUtils.getConnection();
@@ -65,15 +65,118 @@ public class TransactionDAO {
         return listTransaction;
     }
 
+    // Method để kiểm tra user có role = 1 (driver) không
+    private boolean isDriverUser(int userID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT roleID FROM users WHERE userID = ? AND status = 1";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, userID);
+                rs = ptm.executeQuery();
+
+                if (rs.next()) {
+                    int roleID = rs.getInt("roleID");
+                    boolean isDriver = (roleID == 1);
+                    System.out.println("User " + userID + " role check - RoleID: " + roleID + ", IsDriver: " + isDriver);
+                    return isDriver;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error checking user role: " + e.getMessage());
+            throw new SQLException("Error checking user role: " + e.getMessage(), e);
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+
+        System.out.println("User " + userID + " not found or inactive");
+        return false; // User không tồn tại hoặc không active
+    }
+
+    // Method để kiểm tra pinSlot có thuộc về stationID không
+    private boolean isPinSlotInStation(int pinID, int stationID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT stationID FROM pinSlot WHERE pinID = ?";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, pinID);
+                rs = ptm.executeQuery();
+
+                if (rs.next()) {
+                    int actualStationID = rs.getInt("stationID");
+                    boolean isMatch = (actualStationID == stationID);
+                    System.out.println("PinSlot " + pinID + " station check - Actual StationID: " + actualStationID + 
+                                     ", Expected StationID: " + stationID + ", IsMatch: " + isMatch);
+                    return isMatch;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error checking pinSlot station: " + e.getMessage());
+            throw new SQLException("Error checking pinSlot station: " + e.getMessage(), e);
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+
+        System.out.println("PinSlot " + pinID + " not found");
+        return false; // PinSlot không tồn tại
+    }
+
     // Method để tạo transaction mới
     public boolean createTransaction(int userID, int amount, int pack, int stationID, int pinID, int status) throws SQLException {
+        // Validate input parameters
+        if (userID <= 0) {
+            throw new SQLException("UserID must be greater than 0");
+        }
+        if (amount <= 0) {
+            throw new SQLException("Amount must be greater than 0");
+        }
+        if (stationID <= 0) {
+            throw new SQLException("StationID must be greater than 0");
+        }
+        if (pinID <= 0) {
+            throw new SQLException("PinID must be greater than 0");
+        }
+        if (status < 0 || status > 2) {
+            throw new SQLException("Status must be 0 (pending), 1 (completed), or 2 (failed)");
+        }
+
+        // Validate business rules
+        if (!isDriverUser(userID)) {
+            throw new SQLException("User " + userID + " is not a driver (role must be 1) or user is inactive");
+        }
+
+        if (!isPinSlotInStation(pinID, stationID)) {
+            throw new SQLException("PinSlot " + pinID + " does not belong to Station " + stationID + " or pinSlot does not exist");
+        }
+
+        System.out.println("All validations passed for transaction creation");
+
         boolean success = false;
         Connection conn = null;
         PreparedStatement ptm = null;
 
         // SQL với GETDATE() cho createAt và DATEADD để thêm 1 tiếng cho expireAt
-        String sql = "INSERT INTO dbo.Transaction (userID, amount, pack, stationID, pinID, status, createAt, expireAt) " +
+        String sql = "INSERT INTO [TestSchedule].[dbo].[Transaction] (userID, amount, pack, stationID, pinID, status, createAt, expireAt) " +
                     "VALUES (?, ?, ?, ?, ?, ?, GETDATE(), DATEADD(HOUR, 1, GETDATE()))";
+
+        System.out.println("Executing SQL: " + sql);
+        System.out.println("Parameters: userID=" + userID + ", amount=" + amount + ", pack=" + pack + 
+                          ", stationID=" + stationID + ", pinID=" + pinID + ", status=" + status);
 
         try {
             conn = DBUtils.getConnection();
@@ -94,10 +197,14 @@ public class TransactionDAO {
                 System.out.println("Create Transaction - UserID: " + userID + ", Amount: " + amount + 
                                  ", Pack: " + pack + ", StationID: " + stationID + ", PinID: " + pinID + 
                                  ", Status: " + status + ", Rows affected: " + rowsAffected);
+            } else {
+                System.out.println("Failed to get database connection");
+                throw new SQLException("Failed to get database connection");
             }
         } catch (Exception e) {
             System.out.println("Error creating transaction: " + e.getMessage());
-            throw new SQLException("Error creating transaction: " + e.getMessage());
+            e.printStackTrace(); // In full stack trace
+            throw new SQLException("Error creating transaction: " + e.getMessage(), e);
         } finally {
             if (ptm != null) {
                 ptm.close();
@@ -117,7 +224,7 @@ public class TransactionDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        String sql = "UPDATE dbo.Transaction SET status = ? WHERE transactionID = ?";
+        String sql = "UPDATE [TestSchedule].[dbo].[Transaction] SET status = ? WHERE transactionID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -155,7 +262,7 @@ public class TransactionDAO {
         ResultSet rs = null;
 
         String sql = "SELECT transactionID, userID, amount, pack, stationID, pinID, status, createAt, expireAt " +
-                    "FROM dbo.Transaction WHERE transactionID = ?";
+                    "FROM [TestSchedule].[dbo].[Transaction] WHERE transactionID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -228,4 +335,5 @@ public class TransactionDAO {
 
         return success;
     }
+
 }

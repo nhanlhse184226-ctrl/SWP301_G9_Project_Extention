@@ -7,7 +7,7 @@ public class ReportDTO {
     private int type;                    // 1=Station, 2=Slot, 3=Battery, 4=Other
     private String description;          // Không giới hạn ký tự
     private int reporterId;              // Foreign Key: Người gửi (roleID=3)
-    private Integer handlerId;           // Foreign Key: Người xử lý (roleID=1), nullable
+    private Integer handlerId;           // Foreign Key: Người xử lý (roleID=3), nullable
     private LocalDateTime createdAt;
     private int status;                  // 0=Pending, 1=InProgress, 2=Resolved
 

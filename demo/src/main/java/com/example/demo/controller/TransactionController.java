@@ -73,13 +73,13 @@ public class TransactionController {
 
     // API để tạo transaction mới
     @PostMapping("/transaction/create")
-    @Operation(summary = "Create new transaction", description = "Create a new payment transaction with automatic timestamp and 1-hour expiration.")
+    @Operation(summary = "Create new transaction", description = "Create a new payment transaction with validation: User must be driver (role=1), PinSlot must belong to the specified Station. Auto-generates timestamp and 1-hour expiration.")
     public ResponseEntity<ApiResponse<Object>> createTransaction(
-            @Parameter(description = "User ID making the transaction", required = true) @RequestParam int userID,
+            @Parameter(description = "Driver ID (must have role=1 and be active)", required = true) @RequestParam int userID,
             @Parameter(description = "Transaction amount", required = true) @RequestParam int amount,
-            @Parameter(description = "Package/Plan ID", required = true) @RequestParam int pack,
-            @Parameter(description = "Charging station ID", required = true) @RequestParam int stationID,
-            @Parameter(description = "Pin slot ID", required = true) @RequestParam int pinID,
+            @Parameter(description = "Package ID", required = true) @RequestParam int pack,
+            @Parameter(description = "Station ID (must match the station of the pinSlot)", required = true) @RequestParam int stationID,
+            @Parameter(description = "Pin slot ID (must belong to the specified station)", required = true) @RequestParam int pinID,
             @Parameter(description = "Initial transaction status (0=pending, 1=completed, 2=failed)", required = false) @RequestParam(defaultValue = "0") int status) {
 
         try {
@@ -111,8 +111,13 @@ public class TransactionController {
             }
 
         } catch (SQLException e) {
-            System.out.println("Error at TransactionController createTransaction: " + e.toString());
-            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+            System.out.println("SQLException at TransactionController createTransaction: " + e.toString());
+            e.printStackTrace(); // In full stack trace để debug
+            return ResponseEntity.internalServerError().body(ApiResponse.error("Database error: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("General Exception at TransactionController createTransaction: " + e.toString());
+            e.printStackTrace(); // In full stack trace để debug
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }
     }
 
@@ -191,4 +196,5 @@ public class TransactionController {
         return ResponseEntity.ok(ApiResponse.success("Transaction service is running", 
             "Scheduled expired transaction cleanup every 1 minute"));
     }
+
 }

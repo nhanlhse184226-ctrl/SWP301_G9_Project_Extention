@@ -216,8 +216,8 @@ public class PinSlotDAO {
                 if (rs.next()) {
                     int status = rs.getInt("status");
                     int pinStatus = rs.getInt("pinStatus");
-                    // Chỉ cho phép đặt chỗ nếu trạng thái hiện tại là 0 (available) và pinStatus là 1 (fully charged)
-                    if (status == 0 && pinStatus == 1) {
+                    // Chỉ cho phép đặt chỗ nếu status hiện tại là 1 (available) và pinStatus là 1 (fully charged)
+                    if (status == 1 && pinStatus == 1) {
                         ptm.close(); // Đóng PreparedStatement cũ trước khi tái sử dụng
                         ptm = conn.prepareStatement(reserve);
                         ptm.setInt(1, userID);
