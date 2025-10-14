@@ -11,26 +11,28 @@ import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.PinSlotDTO;
 
 public class PinSlotDAO {
-    private static final String UPDATE = "EXEC dbo.UpdatePinPercent";
-    private static final String LIST_PIN = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, userID, stationID FROM pinSlot";
 
-    // Thêm method declaration
+    // Method để thực hiện stored procedure UpdatePinPercent
     public boolean updatePinPercent() throws SQLException {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
 
+        String sql = "EXEC dbo.UpdatePinPercent";
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(UPDATE);
+                ptm = conn.prepareStatement(sql);
                 int rowsAffected = ptm.executeUpdate();
                 System.out.println("UpdatePinPercent executed - Rows affected: " + rowsAffected);
                 check = true;
             }
-        } catch (Exception e) {
-            System.out.println("Error executing UpdatePinPercent: " + e.getMessage());
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in updatePinPercent: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in updatePinPercent: " + e.getMessage());
             throw new SQLException("Failed to execute UpdatePinPercent: " + e.getMessage());
         } finally {
             if (ptm != null) {
@@ -49,10 +51,13 @@ public class PinSlotDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
+
+        String sql = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, userID, stationID FROM pinSlot";
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(LIST_PIN);
+                ptm = conn.prepareStatement(sql);
                 rs = ptm.executeQuery();
                 while (rs.next()) {
                     int pinID = rs.getInt("pinID");
@@ -69,8 +74,11 @@ public class PinSlotDAO {
                     listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, userID, stationID));
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace(); // ← Thêm error logging
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in getListPinSlot: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in getListPinSlot: " + e.getMessage());
             throw new SQLException("Error getting pin slot list: " + e.getMessage());
         } finally {
             if (rs != null) {
@@ -117,8 +125,11 @@ public class PinSlotDAO {
                     listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, userID, stationIDFromDB));
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in getListPinSlotByStation: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in getListPinSlotByStation: " + e.getMessage());
             throw new SQLException("Error getting pin slot list by station: " + e.getMessage());
         } finally {
             if (rs != null) {
@@ -157,8 +168,11 @@ public class PinSlotDAO {
                 System.out.println("Update PinSlot - PinID: " + pinID + ", NewPercent: " + pinPercent + "%, PinHealth: " + pinHealth + "%, Status: "
                         + newStatus + ", Rows affected: " + rowsAffected);
             }
-        } catch (Exception e) {
-            System.out.println("Error updating pin slot: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in updatePinSlot: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in updatePinSlot: " + e.getMessage());
             throw new SQLException("Error updating pin slot: " + e.getMessage());
         } finally {
             if (ptm != null) {
@@ -176,7 +190,9 @@ public class PinSlotDAO {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
+
         String sql = "UPDATE dbo.pinSlot SET status = ? WHERE pinID = ?";
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
@@ -184,10 +200,13 @@ public class PinSlotDAO {
                 ptm.setInt(1, status);
                 ptm.setInt(2, pinID);
 
-                check = ptm.executeUpdate() > 0 ? true : false;
+                check = ptm.executeUpdate() > 0;
             }
-        } catch (Exception e) {
-            System.out.println("Error updating pin slot status: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in updatePinSlotStatus: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in updatePinSlotStatus: " + e.getMessage());
             throw new SQLException("Error updating pin slot status: " + e.getMessage());
         } finally {
             if (ptm != null) {
@@ -204,13 +223,15 @@ public class PinSlotDAO {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
-        String reserve = "UPDATE dbo.pinSlot SET status = 2, userID = ? WHERE pinID = ?";
-        String checkStatus = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
+
+        String reserveSQL = "UPDATE dbo.pinSlot SET status = 2, userID = ? WHERE pinID = ?";
+        String checkStatusSQL = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 // Kiểm tra trạng thái hiện tại
-                ptm = conn.prepareStatement(checkStatus);
+                ptm = conn.prepareStatement(checkStatusSQL);
                 ptm.setInt(1, pinID);
                 ResultSet rs = ptm.executeQuery();
                 if (rs.next()) {
@@ -219,10 +240,10 @@ public class PinSlotDAO {
                     // Chỉ cho phép đặt chỗ nếu status hiện tại là 1 (available) và pinStatus là 1 (fully charged)
                     if (status == 1 && pinStatus == 1) {
                         ptm.close(); // Đóng PreparedStatement cũ trước khi tái sử dụng
-                        ptm = conn.prepareStatement(reserve);
+                        ptm = conn.prepareStatement(reserveSQL);
                         ptm.setInt(1, userID);
                         ptm.setInt(2, pinID);
-                        check = ptm.executeUpdate() > 0 ? true : false;
+                        check = ptm.executeUpdate() > 0;
                     } else {
                         System.out.println("Pin slot cannot be reserved. Current status: " + status + ", Pin status: " + pinStatus);
                     }
@@ -231,8 +252,11 @@ public class PinSlotDAO {
                 }
                 rs.close();
             }
-        } catch (Exception e) {
-            System.out.println("Error reserving pin slot: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in reservePinSlot: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in reservePinSlot: " + e.getMessage());
             throw new SQLException("Error reserving pin slot: " + e.getMessage());
         } finally {
             if (ptm != null) {
@@ -249,13 +273,15 @@ public class PinSlotDAO {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
-        String unreserve = "UPDATE dbo.pinSlot SET status = 0, userID = NULL WHERE pinID = ?";
-        String checkStatus = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
+
+        String unreserveSQL = "UPDATE dbo.pinSlot SET status = 0, userID = NULL WHERE pinID = ?";
+        String checkStatusSQL = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
+
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
                 // Kiểm tra trạng thái hiện tại
-                ptm = conn.prepareStatement(checkStatus);
+                ptm = conn.prepareStatement(checkStatusSQL);
                 ptm.setInt(1, pinID);
                 ResultSet rs = ptm.executeQuery();
                 if (rs.next()) {
@@ -263,7 +289,7 @@ public class PinSlotDAO {
                     // Chỉ cho phép unreserve nếu trạng thái hiện tại là 2 (reserved)
                     if (status == 2) {
                         ptm.close(); // Đóng PreparedStatement cũ trước khi tái sử dụng
-                        ptm = conn.prepareStatement(unreserve);
+                        ptm = conn.prepareStatement(unreserveSQL);
                         ptm.setInt(1, pinID);
                         check = ptm.executeUpdate() > 0;
                     } else {
@@ -274,8 +300,11 @@ public class PinSlotDAO {
                 }
                 rs.close();
             }
-        } catch (Exception e) {
-            System.out.println("Error unreserving pin slot: " + e.getMessage());
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in unreservePinSlot: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in unreservePinSlot: " + e.getMessage());
             throw new SQLException("Error unreserving pin slot: " + e.getMessage());
         } finally {
             if (ptm != null) {
@@ -286,6 +315,106 @@ public class PinSlotDAO {
             }
         }
         return check;
+    }
+
+    // Method để swap pin data giữa Vehicle và PinSlot - theo yêu cầu từ conversation
+    public boolean swapVehiclePinSlotData(int vehicleID, int pinSlotID) throws SQLException {
+        boolean success = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        // SQL để lấy dữ liệu từ Vehicle và PinSlot
+        String getVehicleSQL = "SELECT pinPercent, pinHealth FROM Vehicle WHERE vehicleID = ?";
+        String getPinSlotSQL = "SELECT pinPercent, pinHealth FROM pinSlot WHERE pinID = ?";
+        
+        // SQL để update dữ liệu sau khi swap
+        String updateVehicleSQL = "UPDATE Vehicle SET pinPercent = ?, pinHealth = ? WHERE vehicleID = ?";
+        String updatePinSlotSQL = "UPDATE pinSlot SET pinPercent = ?, pinHealth = ? WHERE pinID = ?";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                // Bắt đầu transaction
+                conn.setAutoCommit(false);
+
+                // Lấy dữ liệu Vehicle (SOH1, SOC1)
+                ptm = conn.prepareStatement(getVehicleSQL);
+                ptm.setInt(1, vehicleID);
+                rs = ptm.executeQuery();
+                
+                int vehiclePinPercent = 0, vehiclePinHealth = 0;
+                if (rs.next()) {
+                    vehiclePinPercent = rs.getInt("pinPercent");
+                    vehiclePinHealth = rs.getInt("pinHealth");
+                } else {
+                    throw new SQLException("Vehicle ID " + vehicleID + " not found");
+                }
+                rs.close();
+                ptm.close();
+
+                // Lấy dữ liệu PinSlot (SOH2, SOC2)
+                ptm = conn.prepareStatement(getPinSlotSQL);
+                ptm.setInt(1, pinSlotID);
+                rs = ptm.executeQuery();
+                
+                int pinSlotPinPercent = 0, pinSlotPinHealth = 0;
+                if (rs.next()) {
+                    pinSlotPinPercent = rs.getInt("pinPercent");
+                    pinSlotPinHealth = rs.getInt("pinHealth");
+                } else {
+                    throw new SQLException("PinSlot ID " + pinSlotID + " not found");
+                }
+                rs.close();
+                ptm.close();
+
+                // Swap: Vehicle lưu SOH2 SOC2, PinSlot lưu SOH1 SOC1
+                ptm = conn.prepareStatement(updateVehicleSQL);
+                ptm.setInt(1, pinSlotPinPercent); // Vehicle nhận pinPercent từ PinSlot
+                ptm.setInt(2, pinSlotPinHealth); // Vehicle nhận pinHealth từ PinSlot
+                ptm.setInt(3, vehicleID);
+                int vehicleRowsAffected = ptm.executeUpdate();
+                ptm.close();
+
+                ptm = conn.prepareStatement(updatePinSlotSQL);
+                ptm.setInt(1, vehiclePinPercent); // PinSlot nhận pinPercent từ Vehicle
+                ptm.setInt(2, vehiclePinHealth); // PinSlot nhận pinHealth từ Vehicle
+                ptm.setInt(3, pinSlotID);
+                int pinSlotRowsAffected = ptm.executeUpdate();
+
+                // Commit transaction nếu cả 2 update thành công
+                if (vehicleRowsAffected > 0 && pinSlotRowsAffected > 0) {
+                    conn.commit();
+                    success = true;
+                    System.out.println("Pin data swapped successfully between Vehicle ID " + vehicleID + " and PinSlot ID " + pinSlotID);
+                    System.out.println("Vehicle: " + vehiclePinPercent + "%, " + vehiclePinHealth + "% -> " + pinSlotPinPercent + "%, " + pinSlotPinHealth + "%");
+                    System.out.println("PinSlot: " + pinSlotPinPercent + "%, " + pinSlotPinHealth + "% -> " + vehiclePinPercent + "%, " + vehiclePinHealth + "%");
+                } else {
+                    conn.rollback();
+                    System.out.println("Failed to swap pin data - rolling back transaction");
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            if (conn != null) conn.rollback();
+            System.out.println("ClassNotFoundException in swapVehiclePinSlotData: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            if (conn != null) conn.rollback();
+            System.out.println("SQLException in swapVehiclePinSlotData: " + e.getMessage());
+            throw new SQLException("Error swapping vehicle pin slot data: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+        return success;
     }
 
 }
