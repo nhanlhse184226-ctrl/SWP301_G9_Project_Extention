@@ -11,24 +11,19 @@ import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.UserDTO;
 
 public class UserDAO {
-    private static final String LOGIN = "SELECT * FROM users WHERE Email=? AND Password=? AND status=1";
-    private static final String LIST_DRIVER = "SELECT * FROM users WHERE roleID = 1";
-    private static final String LIST_STAFF = "SELECT * FROM users WHERE roleID = 2";
-    private static final String UPDATE = "UPDATE users SET Name=?, Email=?, roleID=? WHERE userID=?";
-    private static final String UPDATE_DRIVER = "UPDATE users SET phone=?, Password=? WHERE userID=?";
-    private static final String DUPLICATE_EMAIL = "SELECT * FROM users WHERE Email=?";
-    private static final String DUPLICATE_PHONE = "SELECT * FROM users WHERE phone=?";
-    private static final String CREATE = "INSERT INTO users(Name, Email, Password, phone, roleID, status) VALUES(?,?,?,?,?,?)";
 
     public UserDTO checkLogin(String Email, String Password) throws SQLException {
         UserDTO user = null;
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
+        
+        String sql = "SELECT * FROM users WHERE Email=? AND Password=? AND status=1";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(LOGIN);
+                ptm = conn.prepareStatement(sql);
                 ptm.setString(1, Email);
                 ptm.setString(2, Password);
                 rs = ptm.executeQuery();
@@ -41,9 +36,14 @@ public class UserDAO {
                     int status = rs.getInt("status");
                     user = new UserDTO(userID, Name, userEmail, "***", phone, roleID, status);
                 }
+                
+                System.out.println("checkLogin: Login attempt for email " + Email + " - " + (user != null ? "Success" : "Failed"));
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("checkLogin error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("checkLogin error: " + e.getMessage());
             throw new SQLException("Error during login: " + e.getMessage());
         } finally {
             if (rs != null) {
@@ -64,10 +64,13 @@ public class UserDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
+        
+        String sql = "SELECT * FROM users WHERE roleID = 1";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(LIST_DRIVER);
+                ptm = conn.prepareStatement(sql);
                 rs = ptm.executeQuery();
                 while (rs.next()) {
                     int userID = rs.getInt("userID");
@@ -79,9 +82,14 @@ public class UserDAO {
                     int status = rs.getInt("status");
                     listDriver.add(new UserDTO(userID, Name, Email, Password, phone, roleID, status));
                 }
+                
+                System.out.println("getListDriver: Retrieved " + listDriver.size() + " drivers");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("getListDriver error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("getListDriver error: " + e.getMessage());
             throw new SQLException("Error getting driver list: " + e.getMessage());
         } finally {
             if (rs != null) {
@@ -102,10 +110,13 @@ public class UserDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
+        
+        String sql = "SELECT * FROM users WHERE roleID = 2";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(LIST_STAFF);
+                ptm = conn.prepareStatement(sql);
                 rs = ptm.executeQuery();
                 while (rs.next()) {
                     int userID = rs.getInt("userID");
@@ -117,9 +128,14 @@ public class UserDAO {
                     int status = rs.getInt("status");
                     listStaff.add(new UserDTO(userID, Name, Email, Password, phone, roleID, status));
                 }
+                
+                System.out.println("getListStaff: Retrieved " + listStaff.size() + " staff members");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("getListStaff error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("getListStaff error: " + e.getMessage());
             throw new SQLException("Error getting staff list: " + e.getMessage());
         } finally {
             if (rs != null) {
@@ -139,18 +155,27 @@ public class UserDAO {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
+        
+        String sql = "UPDATE users SET Name=?, Email=?, roleID=? WHERE userID=?";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(UPDATE);
+                ptm = conn.prepareStatement(sql);
                 ptm.setString(1, user.getName());
                 ptm.setString(2, user.getEmail());
                 ptm.setInt(3, user.getRoleID());
                 ptm.setInt(4, user.getUserID());
-                check = ptm.executeUpdate() > 0 ? true : false;
+                int rowsAffected = ptm.executeUpdate();
+                check = rowsAffected > 0;
+                
+                System.out.println("update: " + rowsAffected + " rows affected - Updated user ID " + user.getUserID());
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("update error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("update error: " + e.getMessage());
             throw new SQLException("Error updating user: " + e.getMessage());
         } finally {
             if (ptm != null) {
@@ -168,17 +193,26 @@ public class UserDAO {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
+        
+        String sql = "UPDATE users SET phone=?, Password=? WHERE userID=?";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(UPDATE_DRIVER);
+                ptm = conn.prepareStatement(sql);
                 ptm.setLong(1, phone);
                 ptm.setString(2, password);
                 ptm.setInt(3, userID);
-                check = ptm.executeUpdate() > 0 ? true : false;
+                int rowsAffected = ptm.executeUpdate();
+                check = rowsAffected > 0;
+                
+                System.out.println("updateDriver: " + rowsAffected + " rows affected - Updated driver ID " + userID);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("updateDriver error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("updateDriver error: " + e.getMessage());
             throw new SQLException("Error updating driver info: " + e.getMessage());
         } finally {
             if (ptm != null) {
@@ -196,18 +230,26 @@ public class UserDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
+        
+        String sql = "SELECT * FROM users WHERE Email=?";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(DUPLICATE_EMAIL);
+                ptm = conn.prepareStatement(sql);
                 ptm.setString(1, email);
                 rs = ptm.executeQuery();
                 if (rs.next()) {
                     check = true;
                 }
+                
+                System.out.println("checkDuplicateEmail: Email " + email + " - " + (check ? "Duplicate found" : "Available"));
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("checkDuplicateEmail error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("checkDuplicateEmail error: " + e.getMessage());
             throw new SQLException("Error checking duplicate email: " + e.getMessage());
         } finally {
             if (rs != null) {
@@ -228,18 +270,26 @@ public class UserDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
+        
+        String sql = "SELECT * FROM users WHERE phone=?";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(DUPLICATE_PHONE);
+                ptm = conn.prepareStatement(sql);
                 ptm.setLong(1, phone);
                 rs = ptm.executeQuery();
                 if (rs.next()) {
                     check = true;
                 }
+                
+                System.out.println("checkDuplicatePhone: Phone " + phone + " - " + (check ? "Duplicate found" : "Available"));
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("checkDuplicatePhone error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("checkDuplicatePhone error: " + e.getMessage());
             throw new SQLException("Error checking duplicate phone: " + e.getMessage());
         } finally {
             if (rs != null) {
@@ -302,23 +352,30 @@ public class UserDAO {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
+        
+        String sql = "INSERT INTO users(Name, Email, Password, phone, roleID, status) VALUES(?,?,?,?,?,?)";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(CREATE);
+                ptm = conn.prepareStatement(sql);
                 ptm.setString(1, user.getName().trim());
                 ptm.setString(2, user.getEmail().trim().toLowerCase());
                 ptm.setString(3, user.getPassword());
                 ptm.setLong(4, user.getPhone());
                 ptm.setInt(5, user.getRoleID());
                 ptm.setInt(6, user.getStatus());  // Add status parameter
-                check = ptm.executeUpdate() > 0 ? true : false;
+                int rowsAffected = ptm.executeUpdate();
+                check = rowsAffected > 0;
 
-                System.out.println("Create User - Name: " + user.getName() + ", Email: " + user.getEmail() +
+                System.out.println("create: " + rowsAffected + " rows affected - Created user: " + user.getName() + ", Email: " + user.getEmail() +
                         ", Phone: " + user.getPhone() + ", RoleID: " + user.getRoleID() + ", Status: " + user.getStatus());
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("create error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("create error: " + e.getMessage());
             throw new SQLException("Error creating user: " + e.getMessage());
         } finally {
             if (ptm != null) {
@@ -335,18 +392,24 @@ public class UserDAO {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
+        
+        String sql = "UPDATE users SET status = CASE WHEN status = 1 THEN 0 ELSE 1 END WHERE userID = ?";
+        
         try {
             conn = DBUtils.getConnection();
             if (conn != null) {
-                String sql = "UPDATE users SET status = CASE WHEN status = 1 THEN 0 ELSE 1 END WHERE userID = ?";
                 ptm = conn.prepareStatement(sql);
                 ptm.setInt(1, userID);
-                check = ptm.executeUpdate() > 0 ? true : false;
+                int rowsAffected = ptm.executeUpdate();
+                check = rowsAffected > 0;
 
-                System.out.println("Update User Status - userID: " + userID);
+                System.out.println("updateStatus: " + rowsAffected + " rows affected - Updated status for user ID " + userID);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            System.err.println("updateStatus error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("updateStatus error: " + e.getMessage());
             throw new SQLException("Error updating user status: " + e.getMessage());
         } finally {
             if (ptm != null) {
