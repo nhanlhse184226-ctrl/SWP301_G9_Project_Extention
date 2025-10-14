@@ -46,6 +46,31 @@ public class TransactionController {
         }
     }
 
+    // API để lấy danh sách transaction theo userID
+    @GetMapping("/transaction/getByUser")
+    @Operation(summary = "Get transactions by user ID", description = "Retrieve all transactions for a specific user, ordered by creation date (newest first).")
+    public ResponseEntity<ApiResponse<Object>> getTransactionsByUser(
+            @Parameter(description = "User ID to get transactions for", required = true) @RequestParam int userID) {
+        try {
+            // Validation
+            if (userID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("User ID must be greater than 0"));
+            }
+
+            List<TransactionDTO> listTransaction = transactionDAO.getTransactionsByUser(userID);
+
+            if (listTransaction != null && !listTransaction.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success("Get transactions for user successfully", listTransaction));
+            } else {
+                return ResponseEntity.ok(ApiResponse.success("No transactions found for user ID: " + userID, listTransaction));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error at TransactionController getTransactionsByUser: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
+    }
+
     // API để lấy transaction theo ID
     @GetMapping("/transaction/getById")
     @Operation(summary = "Get transaction by ID", description = "Retrieve a specific transaction by its transaction ID.")

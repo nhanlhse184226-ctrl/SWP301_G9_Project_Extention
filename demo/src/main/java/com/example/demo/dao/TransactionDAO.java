@@ -65,6 +65,63 @@ public class TransactionDAO {
         return listTransaction;
     }
 
+    // Method để lấy danh sách transaction theo userID
+    public List<TransactionDTO> getTransactionsByUser(int userID) throws SQLException {
+        List<TransactionDTO> listTransaction = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT transactionID, userID, amount, pack, stationID, pinID, status, createAt, expireAt " +
+                    "FROM [TestSchedule].[dbo].[Transaction] WHERE userID = ? ORDER BY createAt DESC";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, userID);
+                rs = ptm.executeQuery();
+
+                while (rs.next()) {
+                    int transactionID = rs.getInt("transactionID");
+                    int txnUserID = rs.getInt("userID");
+                    int amount = rs.getInt("amount");
+                    int pack = rs.getInt("pack");
+                    int stationID = rs.getInt("stationID");
+                    int pinID = rs.getInt("pinID");
+                    int status = rs.getInt("status");
+                    Date createAt = rs.getTimestamp("createAt");
+                    Date expireAt = rs.getTimestamp("expireAt");
+
+                    // Tạo TransactionDTO với constructor đầy đủ
+                    TransactionDTO transaction = new TransactionDTO(transactionID, txnUserID, amount, pack, 
+                                                                   stationID, pinID, status, createAt, expireAt);
+                    listTransaction.add(transaction);
+                }
+
+                System.out.println("getTransactionsByUser: Retrieved " + listTransaction.size() + " transactions for user " + userID);
+            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("getTransactionsByUser error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("getTransactionsByUser error: " + e.getMessage());
+            throw new SQLException("Error getting transactions for user: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+
+        return listTransaction;
+    }
+
     // Method để kiểm tra user có role = 1 (driver) không
     private boolean isDriverUser(int userID) throws SQLException {
         Connection conn = null;
