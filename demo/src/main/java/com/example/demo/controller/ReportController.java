@@ -47,13 +47,13 @@ public class ReportController {
                            "System automatically sets status=0 (Pending) and created_at=now.")
     public ResponseEntity<ApiResponse<Object>> createReport(
             @Parameter(description = "User ID from frontend session (automatic, user doesn't input)", 
-                      required = true, example = "123") 
+                      required = true) 
             @RequestParam int userID,  // FE tự động gửi từ session, không hiển thị cho user
             @Parameter(description = "Issue type: 1=Station Problem, 2=Slot Malfunction, 3=Battery Issue, 4=Other", 
-                      required = true, example = "1") 
+                      required = true) 
             @RequestParam int type,    // User chọn: 1=Station, 2=Slot, 3=Battery, 4=Other
-            @Parameter(description = "Detailed description of the problem (no character limit, can be very long)", 
-                      required = true, example = "Station screen is flickering and not responding to touch input") 
+            @Parameter(description = "Detailed description of the problem", 
+                      required = true) 
             @RequestParam String description) {  // User nhập mô tả (không giới hạn ký tự)
         try {
             ReportDAO dao = new ReportDAO();

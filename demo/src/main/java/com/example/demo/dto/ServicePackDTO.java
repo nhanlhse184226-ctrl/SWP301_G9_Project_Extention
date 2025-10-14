@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 public class ServicePackDTO {
     private int packID;
     private String packName;
-    private String status;
+    private int status;
     private String description;
     private int total;
     private int price;
@@ -15,7 +15,7 @@ public class ServicePackDTO {
     public ServicePackDTO() {}
 
     // Constructor cho create (không có packID và createDate vì auto-generated)
-    public ServicePackDTO(String packName, String status, String description, int total, int price) {
+    public ServicePackDTO(String packName, int status, String description, int total, int price) {
         this.packName = packName;
         this.status = status;
         this.description = description;
@@ -24,7 +24,7 @@ public class ServicePackDTO {
     }
 
     // Constructor đầy đủ (cho response từ database)
-    public ServicePackDTO(int packID, String packName, String status, String description, int total, int price, Timestamp createDate) {
+    public ServicePackDTO(int packID, String packName, int status, String description, int total, int price, Timestamp createDate) {
         this.packID = packID;
         this.packName = packName;
         this.status = status;
@@ -51,11 +51,11 @@ public class ServicePackDTO {
         this.packName = packName;
     }
 
-    public String getStatus() {
+    public int getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(int status) {
         this.status = status;
     }
 
@@ -96,7 +96,7 @@ public class ServicePackDTO {
         return "ServicePackDTO{" +
                 "packID=" + packID +
                 ", packName='" + packName + '\'' +
-                ", status='" + status + '\'' +
+                ", status=" + status +
                 ", description='" + description + '\'' +
                 ", total=" + total +
                 ", price=" + price +

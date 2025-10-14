@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.ServicePackDTO;
@@ -41,33 +43,6 @@ public class ServicePackDAO {
         return false; // User không tồn tại hoặc không phải admin
     }
 
-    // Method để check ServicePack có tồn tại không
-    public boolean isPackExists(int packID) throws SQLException {
-        Connection conn = null;
-        PreparedStatement ptm = null;
-        ResultSet rs = null;
-
-        String sql = "SELECT packID FROM ServicePack WHERE packID = ?";
-
-        try {
-            conn = DBUtils.getConnection();
-            if (conn != null) {
-                ptm = conn.prepareStatement(sql);
-                ptm.setInt(1, packID);
-                rs = ptm.executeQuery();
-
-                return rs.next(); // Trả về true nếu có record, false nếu không
-            }
-        } catch (ClassNotFoundException e) {
-            throw new SQLException("Database driver not found: " + e.getMessage());
-        } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
-        }
-
-        return false;
-    }
 
     // Method để check duplicate pack name
     public boolean isPackNameExists(String packName) throws SQLException {
@@ -109,8 +84,8 @@ public class ServicePackDAO {
             throw new SQLException("Pack name cannot be null or empty");
         }
 
-        if (servicePack.getStatus() == null || servicePack.getStatus().trim().isEmpty()) {
-            throw new SQLException("Status cannot be null or empty");
+        if (servicePack.getStatus() < 0 || servicePack.getStatus() > 1) {
+            throw new SQLException("Status must be 0 (inactive) or 1 (active)");
         }
 
         if (servicePack.getPrice() < 0 || servicePack.getTotal() < 0) {
@@ -133,7 +108,7 @@ public class ServicePackDAO {
             if (conn != null) {
                 ptm = conn.prepareStatement(sql);
                 ptm.setString(1, servicePack.getPackName().trim());
-                ptm.setString(2, servicePack.getStatus().trim());
+                ptm.setInt(2, servicePack.getStatus());
                 ptm.setString(3, servicePack.getDescription());
                 ptm.setInt(4, servicePack.getTotal());
                 ptm.setInt(5, servicePack.getPrice());
@@ -170,18 +145,13 @@ public class ServicePackDAO {
             throw new SQLException("Access denied. Only admin users (roleID=3) can update service packs");
         }
 
-        // Validate pack exists
-        if (!isPackExists(packID)) {
-            throw new SQLException("Service pack with ID " + packID + " does not exist");
-        }
-
         // Validate input
         if (servicePack.getPackName() == null || servicePack.getPackName().trim().isEmpty()) {
             throw new SQLException("Pack name cannot be null or empty");
         }
 
-        if (servicePack.getStatus() == null || servicePack.getStatus().trim().isEmpty()) {
-            throw new SQLException("Status cannot be null or empty");
+        if (servicePack.getStatus() < 0 || servicePack.getStatus() > 1) {
+            throw new SQLException("Status must be 0 (inactive) or 1 (active)");
         }
 
         if (servicePack.getPrice() < 0 || servicePack.getTotal() < 0) {
@@ -204,7 +174,7 @@ public class ServicePackDAO {
                 String updateSql = "UPDATE ServicePack SET packName = ?, status = ?, description = ?, total = ?, price = ? WHERE packID = ?";
                 ptm = conn.prepareStatement(updateSql);
                 ptm.setString(1, servicePack.getPackName().trim());
-                ptm.setString(2, servicePack.getStatus().trim());
+                ptm.setInt(2, servicePack.getStatus());
                 ptm.setString(3, servicePack.getDescription());
                 ptm.setInt(4, servicePack.getTotal());
                 ptm.setInt(5, servicePack.getPrice());
@@ -257,7 +227,7 @@ public class ServicePackDAO {
                     return new ServicePackDTO(
                         rs.getInt("packID"),
                         rs.getString("packName"),
-                        rs.getString("status"),
+                        rs.getInt("status"),
                         rs.getString("description"),
                         rs.getInt("total"),
                         rs.getInt("price"),
@@ -274,5 +244,46 @@ public class ServicePackDAO {
         }
 
         return null;
+    }
+
+    // Method để lấy danh sách tất cả ServicePack
+    public List<ServicePackDTO> getListServicePack() throws SQLException {
+        List<ServicePackDTO> listServicePack = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT packID, packName, status, description, total, price, createDate FROM ServicePack ORDER BY createDate DESC";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                rs = ptm.executeQuery();
+
+                while (rs.next()) {
+                    ServicePackDTO servicePack = new ServicePackDTO(
+                        rs.getInt("packID"),
+                        rs.getString("packName"),
+                        rs.getInt("status"),
+                        rs.getString("description"),
+                        rs.getInt("total"),
+                        rs.getInt("price"),
+                        rs.getTimestamp("createDate")
+                    );
+                    listServicePack.add(servicePack);
+                }
+
+                System.out.println("Retrieved " + listServicePack.size() + " service packs from database");
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+
+        return listServicePack;
     }
 }

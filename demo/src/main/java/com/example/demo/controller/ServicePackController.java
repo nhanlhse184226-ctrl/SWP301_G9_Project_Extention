@@ -1,8 +1,10 @@
 package com.example.demo.controller;
 
 import java.sql.SQLException;
+import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,7 +32,7 @@ public class ServicePackController {
     public ResponseEntity<ApiResponse<Object>> createServicePack(
             @Parameter(description = "Admin user ID (must have roleID=3)", required = true, example = "1") @RequestParam int adminUserID,
             @Parameter(description = "Service pack name", required = true, example = "Premium Package") @RequestParam String packName,
-            @Parameter(description = "Service pack status", required = true, example = "Active") @RequestParam String status,
+            @Parameter(description = "Service pack status (0=inactive, 1=active)", required = true, example = "1") @RequestParam int status,
             @Parameter(description = "Service pack description", required = false, example = "Premium service with extra features") @RequestParam(required = false) String description,
             @Parameter(description = "Total amount/quantity", required = true, example = "100") @RequestParam int total,
             @Parameter(description = "Price in VND", required = true, example = "500000") @RequestParam int price) {
@@ -47,9 +49,9 @@ public class ServicePackController {
                         .body(ApiResponse.error("Pack name cannot be null or empty"));
             }
 
-            if (status == null || status.trim().isEmpty()) {
+            if (status < 0 || status > 1) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Status cannot be null or empty"));
+                        .body(ApiResponse.error("Status must be 0 (inactive) or 1 (active)"));
             }
 
             if (total < 0) {
@@ -94,7 +96,7 @@ public class ServicePackController {
             @Parameter(description = "Service pack ID to update", required = true, example = "1") @RequestParam int packID,
             @Parameter(description = "Admin user ID (must have roleID=3)", required = true, example = "1") @RequestParam int adminUserID,
             @Parameter(description = "Service pack name", required = true, example = "Premium Package Updated") @RequestParam String packName,
-            @Parameter(description = "Service pack status", required = true, example = "Active") @RequestParam String status,
+            @Parameter(description = "Service pack status (0=inactive, 1=active)", required = true, example = "1") @RequestParam int status,
             @Parameter(description = "Service pack description", required = false, example = "Updated premium service description") @RequestParam(required = false) String description,
             @Parameter(description = "Total amount/quantity", required = true, example = "150") @RequestParam int total,
             @Parameter(description = "Price in VND", required = true, example = "600000") @RequestParam int price) {
@@ -116,9 +118,9 @@ public class ServicePackController {
                         .body(ApiResponse.error("Pack name cannot be null or empty"));
             }
 
-            if (status == null || status.trim().isEmpty()) {
+            if (status < 0 || status > 1) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Status cannot be null or empty"));
+                        .body(ApiResponse.error("Status must be 0 (inactive) or 1 (active)"));
             }
 
             if (total < 0) {
@@ -155,6 +157,30 @@ public class ServicePackController {
             System.out.println("Error updating service pack: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("Error updating service pack: " + e.getMessage()));
+        }
+    }
+
+    // API để lấy danh sách tất cả ServicePack
+    @GetMapping("/servicePack/list")
+    @Operation(summary = "Get all service packs", description = "Retrieve all service packs from the database, ordered by creation date (newest first).")
+    public ResponseEntity<ApiResponse<Object>> getListServicePack() {
+        try {
+            List<ServicePackDTO> listServicePack = servicePackDAO.getListServicePack();
+
+            if (listServicePack != null && !listServicePack.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success("Get service pack list successful", listServicePack));
+            } else {
+                return ResponseEntity.ok(ApiResponse.success("No service packs found", listServicePack));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Database error in getListServicePack: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Database error: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("Error getting service pack list: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error getting service pack list: " + e.getMessage()));
         }
     }
 }
