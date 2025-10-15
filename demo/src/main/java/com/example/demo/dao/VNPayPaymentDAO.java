@@ -14,39 +14,27 @@ public class VNPayPaymentDAO {
 
     // Create payment record in database (legacy, no station/pin)
     public boolean createPayment(Integer userID, Integer servicePackID, String vnp_TxnRef, String orderInfo, Long vnp_Amount) throws SQLException {
-        return createPayment(userID, servicePackID, vnp_TxnRef, orderInfo, vnp_Amount, null, null, 0);
+        return createPayment(userID, servicePackID, vnp_TxnRef, orderInfo, vnp_Amount, 0, null);
     }
 
-    // Create payment record in database (parameter order matching service calls)
-    public boolean createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, String vnp_TxnRef, String orderInfo, Long vnp_Amount, int status) throws SQLException {
-        return createPayment(userID, packID, vnp_TxnRef, orderInfo, vnp_Amount, stationID, pinID, status, null);
+    // Create payment record (simplified method)
+    public boolean createPayment(Integer userID, Integer packID, String vnp_TxnRef, String orderInfo, Long vnp_Amount, int status) throws SQLException {
+        return createPayment(userID, packID, vnp_TxnRef, orderInfo, vnp_Amount, status, null);
     }
 
-    // Create payment record in database (parameter order matching service calls with total)
-    public boolean createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, String vnp_TxnRef, String orderInfo, Long vnp_Amount, int status, Integer total) throws SQLException {
-        return createPayment(userID, packID, vnp_TxnRef, orderInfo, vnp_Amount, stationID, pinID, status, total);
-    }
-
-    // Create payment record in database (new with stationID, pinID, status)
-    public boolean createPayment(Integer userID, Integer packID, String vnp_TxnRef, String orderInfo, Long vnp_Amount, Integer stationID, Integer pinID, int status) throws SQLException {
-        return createPayment(userID, packID, vnp_TxnRef, orderInfo, vnp_Amount, stationID, pinID, status, null);
-    }
-
-    // Create payment record in database (with total)
-    public boolean createPayment(Integer userID, Integer packID, String vnp_TxnRef, String orderInfo, Long vnp_Amount, Integer stationID, Integer pinID, int status, Integer total) throws SQLException {
-        String sql = "INSERT INTO dbo.VNPayPaymentDTO (userID, packID, stationID, pinID, total, vnp_TxnRef, vnp_OrderInfo, vnp_Amount, status, createdAt, expiredAt) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), DATEADD(MINUTE, 15, GETDATE()))";
+    // Create payment record with total (main implementation)
+    public boolean createPayment(Integer userID, Integer packID, String vnp_TxnRef, String orderInfo, Long vnp_Amount, int status, Integer total) throws SQLException {
+        String sql = "INSERT INTO dbo.VNPayPaymentDTO (userID, PackID, total, vnp_TxnRef, vnp_OrderInfo, vnp_Amount, status, createdAt, expiredAt) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE(), DATEADD(MINUTE, 15, GETDATE()))";
 
         try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
             if (userID != null) ptm.setInt(1, userID); else ptm.setNull(1, java.sql.Types.INTEGER);
             if (packID != null) ptm.setInt(2, packID); else ptm.setNull(2, java.sql.Types.INTEGER);
-            if (stationID != null) ptm.setInt(3, stationID); else ptm.setNull(3, java.sql.Types.INTEGER);
-            if (pinID != null) ptm.setInt(4, pinID); else ptm.setNull(4, java.sql.Types.INTEGER);
-            if (total != null) ptm.setInt(5, total); else ptm.setNull(5, java.sql.Types.INTEGER);
-            ptm.setString(6, vnp_TxnRef);
-            ptm.setString(7, orderInfo);
-            if (vnp_Amount != null) ptm.setLong(8, vnp_Amount); else ptm.setNull(8, java.sql.Types.BIGINT);
-            ptm.setInt(9, status);
+            if (total != null) ptm.setInt(3, total); else ptm.setNull(3, java.sql.Types.INTEGER);
+            ptm.setString(4, vnp_TxnRef);
+            ptm.setString(5, orderInfo);
+            if (vnp_Amount != null) ptm.setLong(6, vnp_Amount); else ptm.setNull(6, java.sql.Types.BIGINT);
+            ptm.setInt(7, status);
 
             int rows = ptm.executeUpdate();
             return rows > 0;
@@ -57,7 +45,7 @@ public class VNPayPaymentDAO {
 
     // Retrieve payment by txnRef
     public VNPayPaymentDTO getPaymentByTxnRef(String vnp_TxnRef) throws SQLException {
-        String sql = "SELECT TOP 1 paymentID, userID, packID, stationID, pinID, total, vnp_TxnRef, vnp_OrderInfo, vnp_Amount, status, createdAt, updatedAt, expiredAt, vnp_TransactionNo, vnp_ResponseCode, vnp_TransactionStatus, vnp_PayDate, vnp_BankCode " +
+        String sql = "SELECT TOP 1 paymentID, userID, packID, total, vnp_TxnRef, vnp_OrderInfo, vnp_Amount, status, createdAt, updatedAt, expiredAt, vnp_TransactionNo, vnp_ResponseCode, vnp_TransactionStatus, vnp_PayDate, vnp_BankCode " +
                      "FROM dbo.VNPayPaymentDTO WHERE vnp_TxnRef = ? ORDER BY createdAt DESC";
 
         try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
@@ -68,8 +56,6 @@ public class VNPayPaymentDAO {
                     dto.setPaymentID(rs.getInt("paymentID"));
                     int u = rs.getInt("userID"); if (!rs.wasNull()) dto.setUserID(u);
                     int s = rs.getInt("packID"); if (!rs.wasNull()) dto.setPackID(s);
-                    int statn = rs.getInt("stationID"); if (!rs.wasNull()) dto.setStationID(statn);
-                    int p = rs.getInt("pinID"); if (!rs.wasNull()) dto.setPinID(p);
                     int t = rs.getInt("total"); if (!rs.wasNull()) dto.setTotal(t);
                     dto.setVnp_TxnRef(rs.getString("vnp_TxnRef"));
                     dto.setVnp_OrderInfo(rs.getString("vnp_OrderInfo"));
@@ -95,6 +81,9 @@ public class VNPayPaymentDAO {
 
     // Update payment status when payment is completed/failed
     public boolean updatePaymentStatus(String vnp_TxnRef, int status, String vnp_TransactionNo, String vnp_ResponseCode, String vnp_TransactionStatus, String vnp_PayDate, String vnp_BankCode) throws SQLException {
+        System.out.println("=== VNPayPaymentDAO.updatePaymentStatus START ===");
+        System.out.println("Parameters: txnRef=" + vnp_TxnRef + ", status=" + status + ", transactionNo=" + vnp_TransactionNo + ", responseCode=" + vnp_ResponseCode);
+        
         String sql = "UPDATE dbo.VNPayPaymentDTO SET status = ?, vnp_TransactionNo = ?, vnp_ResponseCode = ?, vnp_TransactionStatus = ?, vnp_PayDate = ?, vnp_BankCode = ?, updatedAt = GETDATE() WHERE vnp_TxnRef = ?";
 
         try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
@@ -106,39 +95,41 @@ public class VNPayPaymentDAO {
             ptm.setString(6, vnp_BankCode);
             ptm.setString(7, vnp_TxnRef);
 
+            System.out.println("Executing SQL: " + sql);
             int rows = ptm.executeUpdate();
+            System.out.println("Updated VNPayPayment status: txnRef=" + vnp_TxnRef + ", status=" + status + ", rows=" + rows);
+            System.out.println("=== VNPayPaymentDAO.updatePaymentStatus END ===");
             return rows > 0;
         } catch (ClassNotFoundException e) {
+            System.out.println("ERROR: DB driver not found: " + e.getMessage());
             throw new SQLException("DB driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("ERROR: SQL Exception in updatePaymentStatus: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
         }
     }
 
     /**
-     * Lấy lịch sử số lần đổi pin theo userID
+     * Lấy lịch sử giao dịch theo userID
      * @param userID ID của user
-     * @return List<VNPayPaymentDTO> chứa thông tin stationID, pinID, createdAt, bankCode, status
+     * @return List<VNPayPaymentDTO> chứa thông tin createdAt, bankCode, status
      */
     public List<VNPayPaymentDTO> getPinChangeHistory(Integer userID) throws SQLException {
         List<VNPayPaymentDTO> history = new ArrayList<>();
-        String sql = "SELECT stationID, pinID, createdAt, vnp_BankCode, status " +
-                     "FROM dbo.VNPayPaymentDTO WHERE userID = ? AND vnp_TransactionNo IS NOT NULL ORDER BY createdAt DESC";
+        String sql = "SELECT createdAt, vnp_BankCode, status " +
+                     "FROM dbo.VNPayPaymentDTO WHERE userID = ? ORDER BY createdAt DESC";
 
         try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
             ptm.setInt(1, userID);
             try (ResultSet rs = ptm.executeQuery()) {
                 while (rs.next()) {
-                    Integer stationID = rs.getInt("stationID");
-                    if (rs.wasNull()) stationID = null;
-                    
-                    Integer pinID = rs.getInt("pinID");
-                    if (rs.wasNull()) pinID = null;
-                    
                     String createdAt = rs.getString("createdAt");
                     String bankCode = rs.getString("vnp_BankCode");
                     int status = rs.getInt("status");
                     
-                    // Sử dụng constructor cho pin history
-                    VNPayPaymentDTO dto = new VNPayPaymentDTO(stationID, pinID, createdAt, bankCode, status);
+                    // Sử dụng constructor mới cho transaction history (không có stationID/pinID)
+                    VNPayPaymentDTO dto = new VNPayPaymentDTO(createdAt, bankCode, status);
                     history.add(dto);
                 }
             }
@@ -156,14 +147,14 @@ public class VNPayPaymentDAO {
      */
     public List<VNPayPaymentDTO> getPaymentHistory(Integer userID) throws SQLException {
         List<VNPayPaymentDTO> history = new ArrayList<>();
-        String sql = "SELECT packID, vnp_TxnRef, vnp_OrderInfo, vnp_Amount, vnp_BankCode, status, createdAt " +
-                     "FROM dbo.VNPayPaymentDTO WHERE userID = ? AND vnp_TransactionNo IS NOT NULL ORDER BY createdAt DESC";
+        String sql = "SELECT PackID, vnp_TxnRef, vnp_OrderInfo, vnp_Amount, vnp_BankCode, status, createdAt " +
+                     "FROM dbo.VNPayPaymentDTO WHERE userID = ? ORDER BY createdAt DESC";
 
         try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
             ptm.setInt(1, userID);
             try (ResultSet rs = ptm.executeQuery()) {
                 while (rs.next()) {
-                    Integer packID = rs.getInt("packID");
+                    Integer packID = rs.getInt("PackID");
                     if (rs.wasNull()) packID = null;
                     
                     String txnRef = rs.getString("vnp_TxnRef");
@@ -183,5 +174,26 @@ public class VNPayPaymentDAO {
         }
         
         return history;
+    }
+
+    /**
+     * Debug method: Count total payments
+     */
+    public int countAllPayments() throws SQLException {
+        String sql = "SELECT COUNT(*) as total FROM dbo.VNPayPaymentDTO";
+        
+        try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
+            try (ResultSet rs = ptm.executeQuery()) {
+                if (rs.next()) {
+                    int count = rs.getInt("total");
+                    System.out.println("Total payments in DB: " + count);
+                    return count;
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("DB driver not found: " + e.getMessage());
+        }
+        
+        return 0;
     }
 }

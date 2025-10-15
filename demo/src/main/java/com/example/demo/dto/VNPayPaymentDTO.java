@@ -2,6 +2,7 @@ package com.example.demo.dto;
 
 /**
  * VNPay Payment DTO - Đơn giản, chỉ cần những field cơ bản
+ * NOTE: stationID và pinID không còn được lưu vào database nữa (kept for backward compatibility)
  */
 public class VNPayPaymentDTO {
     
@@ -9,8 +10,13 @@ public class VNPayPaymentDTO {
     private Integer paymentID;
     private Integer userID;
     private Integer packID;
+    
+    // Legacy fields - NOT STORED IN DATABASE ANYMORE (kept for backward compatibility)
+    @Deprecated
     private Integer stationID;
+    @Deprecated
     private Integer pinID;
+    
     private Integer total;  // Total credits/lượt from FE
     
     // VNPay fields
@@ -36,21 +42,39 @@ public class VNPayPaymentDTO {
     // Default constructor
     public VNPayPaymentDTO() {}
     
-    // Constructor for creation
+    // Constructor for creation (recommended - without deprecated stationID/pinID)
+    public VNPayPaymentDTO(Integer userID, Integer packID, String orderInfo, Long amount) {
+        this.userID = userID;
+        this.packID = packID;
+        this.vnp_OrderInfo = orderInfo;
+        this.vnp_Amount = amount;
+        this.status = 0;
+    }
+    
+    // Constructor for creation (stationID/pinID deprecated - not stored in DB)
+    @Deprecated
     public VNPayPaymentDTO(Integer userID, Integer packID, String orderInfo, Long amount, Integer stationID, Integer pinID) {
         this.userID = userID;
         this.packID = packID;
         this.vnp_OrderInfo = orderInfo;
         this.vnp_Amount = amount;
         this.status = 0;
-        this.stationID = stationID;
-        this.pinID = pinID;
+        // stationID and pinID are ignored - not stored in database anymore
     }
     
-    // Constructor for pin change history (stationID, pinID, createdAt, bankCode, status)
+    // Constructor for transaction history (legacy stationID/pinID set to null)
+    @Deprecated
     public VNPayPaymentDTO(Integer stationID, Integer pinID, String createdAt, String vnp_BankCode, int status) {
-        this.stationID = stationID;
-        this.pinID = pinID;
+        // stationID and pinID parameters are ignored - kept for backward compatibility
+        this.stationID = null;
+        this.pinID = null;
+        this.createdAt = createdAt;
+        this.vnp_BankCode = vnp_BankCode;
+        this.status = status;
+    }
+    
+    // Constructor for transaction history (recommended - without deprecated stationID/pinID)
+    public VNPayPaymentDTO(String createdAt, String vnp_BankCode, int status) {
         this.createdAt = createdAt;
         this.vnp_BankCode = vnp_BankCode;
         this.status = status;
@@ -77,10 +101,15 @@ public class VNPayPaymentDTO {
     public Integer getPackID() { return packID; }
     public void setPackID(Integer packID) { this.packID = packID; }
     
+    // Legacy getters/setters - NOT STORED IN DATABASE (kept for backward compatibility)
+    @Deprecated
     public Integer getStationID() { return stationID; }
+    @Deprecated
     public void setStationID(Integer stationID) { this.stationID = stationID; }
 
+    @Deprecated
     public Integer getPinID() { return pinID; }
+    @Deprecated
     public void setPinID(Integer pinID) { this.pinID = pinID; }
 
     public Integer getTotal() { return total; }

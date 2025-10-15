@@ -73,4 +73,27 @@ public class SubscriptionDAO {
         }
         return check;
     }
+
+    public boolean decrementTotal(int userID) throws SQLException {
+        boolean check = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                // Only decrement if current total > 0
+                String sql = "UPDATE Subscription SET total = total - 1 WHERE userID = ? AND total > 0";
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, userID);
+                check = ptm.executeUpdate() > 0;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error decrementing subscription total: " + e.getMessage());
+        } finally {
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        return check;
+    }
 }

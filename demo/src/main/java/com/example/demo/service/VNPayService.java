@@ -43,14 +43,27 @@ public class VNPayService {
     private final com.example.demo.dao.VNPayPaymentDAO vnpayPaymentDAO = new com.example.demo.dao.VNPayPaymentDAO();
     
     /**
-     * Tạo payment với QR code - Method mới cho frontend (với đầy đủ fields)
+     * Tạo payment với QR code - Method mới cho frontend 
+     * NOTE: stationID và pinID không được lưu vào database nữa (legacy parameters)
      */
+    @Deprecated
     public VNPayPaymentResponseDTO createPaymentWithQR(Integer userID, Integer packID, Integer stationID, Integer pinID,
                                                       Double amountVND, String orderInfo, String ipAddress, Integer total) 
             throws UnsupportedEncodingException {
         
-        // Tạo payment record với đầy đủ fields
-        String txnRef = createPayment(userID, packID, stationID, pinID, amountVND, orderInfo, total);
+        // Simply call the new method without stationID/pinID
+        return createPaymentWithQR(userID, packID, amountVND, orderInfo, ipAddress, total);
+    }
+
+    /**
+     * Tạo payment với QR code - Recommended method (without deprecated stationID/pinID)
+     */
+    public VNPayPaymentResponseDTO createPaymentWithQR(Integer userID, Integer packID, 
+                                                      Double amountVND, String orderInfo, String ipAddress, Integer total) 
+            throws UnsupportedEncodingException {
+        
+        // Tạo payment record using new method without deprecated stationID/pinID
+        String txnRef = createPayment(userID, packID, amountVND, orderInfo, total);
         
         // Build payment URL
         String paymentUrl = buildPaymentUrl(txnRef, amountVND, orderInfo, ipAddress);
@@ -58,7 +71,6 @@ public class VNPayService {
         // Tạo QR code chứa URL thanh toán - User quét QR → Mở browser → Thanh toán
         // Cách này ĐƠN GIẢN và HIỆU QUẢ nhất cho sandbox VNPay
         String qrCodeBase64 = vnpayQRCodeService.generatePaymentUrlQRCode(paymentUrl);
-        //commmit cho tao
         System.out.println("Generated URL QR code for easy payment access");
         
         // Create response DTO
@@ -91,18 +103,18 @@ public class VNPayService {
     }
     
     /**
-     * Tạo payment record với đầy đủ fields và trả về transaction reference
+     * Tạo payment record và trả về transaction reference (recommended - without deprecated stationID/pinID)
      */
-    public String createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, Double amountVND, String orderInfo, Integer total) {
+    public String createPayment(Integer userID, Integer packID, Double amountVND, String orderInfo, Integer total) {
         // Generate unique transaction reference
         String vnp_TxnRef = generateTxnRef();
         
         // Convert amount to VNPay format (VND * 100)
         Long vnp_Amount = Math.round(amountVND * 100);
         
-        // Save to database using DAO với đầy đủ fields
+        // Save to database using DAO (without deprecated stationID/pinID)
         try {
-            boolean created = vnpayPaymentDAO.createPayment(userID, packID, stationID, pinID, vnp_TxnRef, orderInfo, vnp_Amount, 0, total);
+            boolean created = vnpayPaymentDAO.createPayment(userID, packID, vnp_TxnRef, orderInfo, vnp_Amount, 0, total);
             if (!created) {
                 System.out.println("Warning: Failed to persist VNPay payment record for txnRef=" + vnp_TxnRef);
             }
@@ -115,17 +127,28 @@ public class VNPayService {
         return vnp_TxnRef;
     }
 
-    // Backward compatibility method
+    /**
+     * Tạo payment record và trả về transaction reference
+     * NOTE: stationID và pinID không được lưu vào database nữa (legacy parameters for backward compatibility)
+     */
+    @Deprecated
+    public String createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, Double amountVND, String orderInfo, Integer total) {
+        // Simply call the new method without stationID/pinID
+        return createPayment(userID, packID, amountVND, orderInfo, total);
+    }
+
+    // Backward compatibility method - stationID và pinID không được lưu vào database
+    @Deprecated
     public String createPayment(Integer userID, Integer packID, Integer stationID, Integer pinID, Double amountVND, String orderInfo) {
-        return createPayment(userID, packID, stationID, pinID, amountVND, orderInfo, null);
+        return createPayment(userID, packID, amountVND, orderInfo, null);
     }
 
     /**
      * Tạo payment record và trả về transaction reference (backward compatibility)
      */
     public String createPayment(Integer userID, Integer servicePackID, Double amountVND, String orderInfo) {
-        // Gọi method mới với stationID và pinID = null
-        return createPayment(userID, servicePackID, null, null, amountVND, orderInfo);
+        // Gọi method mới without deprecated stationID/pinID
+        return createPayment(userID, servicePackID, amountVND, orderInfo, null);
     }
     
     /**
@@ -218,6 +241,9 @@ public class VNPayService {
      * Fields đã được encode khi put vào map, nên hashAllFields chỉ concatenate
      */
     public String hashAllFields(Map<String, String> fields) {
+        System.out.println("=== VNPayService.hashAllFields START ===");
+        System.out.println("Input fields: " + fields);
+        
         // Build hash data từ sorted fields - theo code mẫu VNPay Return/IPN
         List<String> fieldNames = new ArrayList<>(fields.keySet());
         Collections.sort(fieldNames);
@@ -238,11 +264,18 @@ public class VNPayService {
             }
         }
         
-        return hmacSHA512(VNPayConfig.VNP_HASH_SECRET, hashData.toString());
+        String result = hmacSHA512(VNPayConfig.VNP_HASH_SECRET, hashData.toString());
+        System.out.println("Hash data: " + hashData.toString());
+        System.out.println("Generated signature: " + result);
+        System.out.println("=== VNPayService.hashAllFields END ===");
+        
+        return result;
     }
     
 
     public boolean verifyPayment(HttpServletRequest request) {
+        System.out.println("=== VNPayService.verifyPayment START ===");
+        
         Map<String, String> params = new TreeMap<>();
         
         // Get all parameters except vnp_SecureHash
@@ -254,6 +287,8 @@ public class VNPayService {
             }
         }
         
+        System.out.println("Parameters for verification: " + params);
+        
         // Build query string
         StringBuilder query = new StringBuilder();
         for (Map.Entry<String, String> entry : params.entrySet()) {
@@ -263,6 +298,7 @@ public class VNPayService {
             try {
                 query.append(entry.getKey()).append("=").append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8.toString()));
             } catch (UnsupportedEncodingException e) {
+                System.out.println("ERROR: Encoding failed: " + e.getMessage());
                 return false;
             }
         }
@@ -271,7 +307,14 @@ public class VNPayService {
         String expectedHash = hmacSHA512(VNPayConfig.VNP_HASH_SECRET, query.toString());
         String receivedHash = request.getParameter("vnp_SecureHash");
         
-        return expectedHash.equals(receivedHash);
+        System.out.println("Query string: " + query.toString());
+        System.out.println("Expected hash: " + expectedHash);
+        System.out.println("Received hash: " + receivedHash);
+        boolean isValid = expectedHash.equals(receivedHash);
+        System.out.println("Signature valid: " + isValid);
+        System.out.println("=== VNPayService.verifyPayment END ===");
+        
+        return isValid;
     }
     
     /**
@@ -378,6 +421,9 @@ public class VNPayService {
      */
     public boolean processPaymentResponse(Map<String, String> vnpParams) {
         try {
+            System.out.println("=== VNPayService.processPaymentResponse START ===");
+            System.out.println("Input params: " + vnpParams);
+            
             String vnp_TxnRef = vnpParams.get("vnp_TxnRef");
             String vnp_ResponseCode = vnpParams.get("vnp_ResponseCode");
             String vnp_TransactionNo = vnpParams.get("vnp_TransactionNo");
@@ -385,18 +431,26 @@ public class VNPayService {
             String vnp_PayDate = vnpParams.get("vnp_PayDate");
             String vnp_BankCode = vnpParams.get("vnp_BankCode");
             
+            System.out.println("Extracted params: txnRef=" + vnp_TxnRef + ", responseCode=" + vnp_ResponseCode + ", transactionStatus=" + vnp_TransactionStatus);
+            
             // Determine status based on response code
             int status;
             if ("00".equals(vnp_ResponseCode)) {
                 status = 1; // SUCCESS
+                System.out.println("Payment SUCCESS - setting status to 1");
             } else {
                 status = 2; // FAILED
+                System.out.println("Payment FAILED - setting status to 2");
             }
             
             // Update payment status in database
-            return vnpayPaymentDAO.updatePaymentStatus(vnp_TxnRef, status, vnp_TransactionNo, 
+            System.out.println("Calling DAO updatePaymentStatus...");
+            boolean result = vnpayPaymentDAO.updatePaymentStatus(vnp_TxnRef, status, vnp_TransactionNo, 
                                                      vnp_ResponseCode, vnp_TransactionStatus, 
                                                      vnp_PayDate, vnp_BankCode);
+            System.out.println("DAO updatePaymentStatus result: " + result);
+            System.out.println("=== VNPayService.processPaymentResponse END ===");
+            return result;
         } catch (Exception e) {
             e.printStackTrace();
             return false;

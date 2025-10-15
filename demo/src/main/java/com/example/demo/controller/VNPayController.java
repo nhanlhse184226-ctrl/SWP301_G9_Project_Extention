@@ -53,8 +53,6 @@ public class VNPayController {
     public ApiResponse<VNPayPaymentResponseDTO> createPayment(
             @Parameter(description = "User ID") @RequestParam Integer userID,
             @Parameter(description = "Pack ID") @RequestParam Integer packID,
-            @Parameter(description = "Station ID") @RequestParam(required = false) Integer stationID,
-            @Parameter(description = "Pin ID") @RequestParam(required = false) Integer pinID,
             @Parameter(description = "Amount in VND") @RequestParam Double amount,
             @Parameter(description = "Order description") @RequestParam String orderInfo,
             @Parameter(description = "Total credits/lượt") @RequestParam(required = false) Integer total,
@@ -69,9 +67,10 @@ public class VNPayController {
             // Get client IP
             String ipAddress = getClientIpAddress(request);
             
+            // NOTE: stationID và pinID không được lưu vào database nữa (legacy parameters for backward compatibility)
             // Tạo payment với QR code
             VNPayPaymentResponseDTO paymentResponse = vnpayService.createPaymentWithQR(
-                userID, packID, stationID, pinID, amount, orderInfo, ipAddress, total);
+                userID, packID, amount, orderInfo, ipAddress, total);
             
             return ApiResponse.success("VNPay payment with QR code created successfully", paymentResponse);
             
@@ -93,8 +92,6 @@ public class VNPayController {
     public ApiResponse<String> createPaymentUrl(
             @Parameter(description = "User ID") @RequestParam Integer userID,
             @Parameter(description = "Pack ID") @RequestParam Integer packID,
-            @Parameter(description = "Station ID") @RequestParam(required = false) Integer stationID,
-            @Parameter(description = "Pin ID") @RequestParam(required = false) Integer pinID,
             @Parameter(description = "Amount in VND") @RequestParam Double amount,
             @Parameter(description = "Order description") @RequestParam String orderInfo,
             @Parameter(description = "Total credits/lượt") @RequestParam(required = false) Integer total,
@@ -106,8 +103,9 @@ public class VNPayController {
                 return ApiResponse.error("UserID " + userID + " không tồn tại trong hệ thống");
             }
             
+            // NOTE: stationID và pinID không được lưu vào database nữa (legacy parameters for backward compatibility)
             // Tạo payment record với total parameter
-            String txnRef = vnpayService.createPayment(userID, packID, stationID, pinID, amount, orderInfo, total);
+            String txnRef = vnpayService.createPayment(userID, packID, amount, orderInfo, total);
             
             // Get client IP
             String ipAddress = getClientIpAddress(request);
@@ -133,37 +131,20 @@ public class VNPayController {
     public ResponseEntity<String> handleVNPayReturn(HttpServletRequest request) {
         
         try {
-            // Lấy tất cả parameters từ VNPay - encode tên và giá trị trước khi put vào map
-            Map<String, String> fields = new HashMap<>();
-            for (Enumeration<String> params = request.getParameterNames(); params.hasMoreElements();) {
-                String rawName = params.nextElement();
-                String rawValue = request.getParameter(rawName);
-                if (rawValue != null && rawValue.length() > 0) {
-                    String fieldName = java.net.URLEncoder.encode(rawName, java.nio.charset.StandardCharsets.US_ASCII.toString());
-                    String fieldValue = java.net.URLEncoder.encode(rawValue, java.nio.charset.StandardCharsets.US_ASCII.toString());
-                    fields.put(fieldName, fieldValue);
-                }
-            }
-
-            // Lấy vnp_SecureHash (raw)
-            String vnp_SecureHash = request.getParameter("vnp_SecureHash");
-
-            // Remove encoded vnp_SecureHash keys khỏi fields để validate (keys trong fields đã được encode)
-            String encSecureHashType = java.net.URLEncoder.encode("vnp_SecureHashType", java.nio.charset.StandardCharsets.US_ASCII.toString());
-            String encSecureHash = java.net.URLEncoder.encode("vnp_SecureHash", java.nio.charset.StandardCharsets.US_ASCII.toString());
-            if (fields.containsKey(encSecureHashType)) {
-                fields.remove(encSecureHashType);
-            }
-            if (fields.containsKey(encSecureHash)) {
-                fields.remove(encSecureHash);
-            }
+            System.out.println("=== VNPay Return URL Handler START ===");
             
-            // Verify checksum theo VNPay format
-            String signValue = vnpayService.hashAllFields(fields);
+            // Sử dụng VNPayService verifyPayment method thay vì tự tính signature
+            boolean isValidSignature = vnpayService.verifyPayment(request);
             
             String txnRef = request.getParameter("vnp_TxnRef");
             String responseCode = request.getParameter("vnp_ResponseCode");
             String transactionStatus = request.getParameter("vnp_TransactionStatus");
+            String vnp_SecureHash = request.getParameter("vnp_SecureHash");
+            
+            System.out.println("=== VNPay Return URL Processing ===");
+            System.out.println("Signature valid: " + isValidSignature);
+            System.out.println("TxnRef: " + txnRef + ", ResponseCode: " + responseCode + ", TransactionStatus: " + transactionStatus);
+            
             String orderInfo = request.getParameter("vnp_OrderInfo");
             String amount = request.getParameter("vnp_Amount");
             String transactionNo = request.getParameter("vnp_TransactionNo");
@@ -171,7 +152,9 @@ public class VNPayController {
             String bankCode = request.getParameter("vnp_BankCode");
             
             // Update payment status in database if signature is valid
-            if (signValue.equals(vnp_SecureHash)) {
+            if (isValidSignature) {
+                System.out.println("✅ Signature verification SUCCESS - proceeding with status update");
+                
                 Map<String, String> vnpParams = new HashMap<>();
                 vnpParams.put("vnp_TxnRef", txnRef);
                 vnpParams.put("vnp_ResponseCode", responseCode);
@@ -181,10 +164,16 @@ public class VNPayController {
                 vnpParams.put("vnp_BankCode", bankCode);
                 
                 // Process payment response and update status
-                vnpayService.processPaymentResponse(vnpParams);
+                System.out.println("Calling processPaymentResponse...");
+                boolean updateResult = vnpayService.processPaymentResponse(vnpParams);
+                System.out.println("processPaymentResponse result: " + updateResult);
                 
                 // Handle VNPay callback for subscription updates
+                System.out.println("Calling handleVnPayCallback...");
                 String callbackResult = vnpayService.handleVnPayCallback(vnpParams);
+                System.out.println("handleVnPayCallback result: " + callbackResult);
+            } else {
+                System.out.println("❌ Signature verification FAILED - no status update");
             }
             
             // Tạo HTML response
@@ -194,7 +183,7 @@ public class VNPayController {
             html.append("<style>body{font-family:Arial;text-align:center;padding:50px;}</style>");
             html.append("</head><body>");
             
-            if (signValue.equals(vnp_SecureHash)) {
+            if (isValidSignature) {
                 if ("00".equals(responseCode) && "00".equals(transactionStatus)) {
                     // Thanh toán thành công
                     html.append("<h1 style='color:green;'>✅ Thanh toán thành công!</h1>");
