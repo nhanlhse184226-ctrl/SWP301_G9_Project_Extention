@@ -199,9 +199,6 @@ public class TransactionDAO {
         if (userID <= 0) {
             throw new SQLException("UserID must be greater than 0");
         }
-        if (amount <= 0) {
-            throw new SQLException("Amount must be greater than 0");
-        }
         if (stationID <= 0) {
             throw new SQLException("StationID must be greater than 0");
         }
@@ -358,6 +355,63 @@ public class TransactionDAO {
         }
 
         return transaction;
+    }
+
+     // Method để lấy danh sách transaction theo stationID
+    public List<TransactionDTO> getTransactionsByStation(int stationID) throws SQLException {
+        List<TransactionDTO> listTransaction = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT transactionID, userID, amount, pack, stationID, pinID, status, createAt, expireAt " +
+                    "FROM [TestSchedule].[dbo].[Transaction] WHERE stationID = ? ORDER BY createAt DESC";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, stationID);
+                rs = ptm.executeQuery();
+
+                while (rs.next()) {
+                    int transactionID = rs.getInt("transactionID");
+                    int userID = rs.getInt("userID");
+                    int amount = rs.getInt("amount");
+                    int pack = rs.getInt("pack");
+                    int txnStationID = rs.getInt("stationID");
+                    int pinID = rs.getInt("pinID");
+                    int status = rs.getInt("status");
+                    Date createAt = rs.getTimestamp("createAt");
+                    Date expireAt = rs.getTimestamp("expireAt");
+
+                    // Tạo TransactionDTO với constructor đầy đủ
+                    TransactionDTO transaction = new TransactionDTO(transactionID, userID, amount, pack, 
+                                                                   txnStationID, pinID, status, createAt, expireAt);
+                    listTransaction.add(transaction);
+                }
+
+                System.out.println("getTransactionsByStation: Retrieved " + listTransaction.size() + " transactions for station " + stationID);
+            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("getTransactionsByStation error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("getTransactionsByStation error: " + e.getMessage());
+            throw new SQLException("Error getting transactions for station: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+
+        return listTransaction;
     }
 
     // Method để chạy stored procedure UpdateExpiredTransactions

@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 public class VNPayConfig {
     
     // Base URL - Using localhost (NO NGROK!)
-    public static final String BASE_URL = "http://localhost:8080";
+    public static final String BASE_URL = "https://98619c2f43d5.ngrok-free.app";
     
     public static final String VNP_PAY_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
     public static final String VNP_RETURN_URL = BASE_URL + "/vnpay/return";

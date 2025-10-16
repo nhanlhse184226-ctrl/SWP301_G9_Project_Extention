@@ -144,29 +144,4 @@ public class TransactionDTO {
                 '}';
     }
 
-    // Helper methods để kiểm tra trạng thái
-    public boolean isPending() {
-        return status == 0;
-    }
-
-    public boolean isCompleted() {
-        return status == 1;
-    }
-
-    public boolean isFailed() {
-        return status == 2;
-    }
-
-    public boolean isExpired() {
-        if (expireAt == null) return false;
-        return new Date().after(expireAt);
-    }
-
-    // Method để set expire time (ví dụ: 30 phút sau createAt)
-    public void setExpireTimeFromCreate(int minutesFromNow) {
-        if (this.createAt != null) {
-            long expireTime = this.createAt.getTime() + (minutesFromNow * 60 * 1000);
-            this.expireAt = new Date(expireTime);
-        }
-    }
 }

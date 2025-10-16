@@ -11,11 +11,6 @@ public class VNPayPaymentDTO {
     private Integer userID;
     private Integer packID;
     
-    // Legacy fields - NOT STORED IN DATABASE ANYMORE (kept for backward compatibility)
-    @Deprecated
-    private Integer stationID;
-    @Deprecated
-    private Integer pinID;
     
     private Integer total;  // Total credits/lượt from FE
     
@@ -63,15 +58,7 @@ public class VNPayPaymentDTO {
     }
     
     // Constructor for transaction history (legacy stationID/pinID set to null)
-    @Deprecated
-    public VNPayPaymentDTO(Integer stationID, Integer pinID, String createdAt, String vnp_BankCode, int status) {
-        // stationID and pinID parameters are ignored - kept for backward compatibility
-        this.stationID = null;
-        this.pinID = null;
-        this.createdAt = createdAt;
-        this.vnp_BankCode = vnp_BankCode;
-        this.status = status;
-    }
+   
     
     // Constructor for transaction history (recommended - without deprecated stationID/pinID)
     public VNPayPaymentDTO(String createdAt, String vnp_BankCode, int status) {
@@ -100,17 +87,6 @@ public class VNPayPaymentDTO {
     
     public Integer getPackID() { return packID; }
     public void setPackID(Integer packID) { this.packID = packID; }
-    
-    // Legacy getters/setters - NOT STORED IN DATABASE (kept for backward compatibility)
-    @Deprecated
-    public Integer getStationID() { return stationID; }
-    @Deprecated
-    public void setStationID(Integer stationID) { this.stationID = stationID; }
-
-    @Deprecated
-    public Integer getPinID() { return pinID; }
-    @Deprecated
-    public void setPinID(Integer pinID) { this.pinID = pinID; }
 
     public Integer getTotal() { return total; }
     public void setTotal(Integer total) { this.total = total; }

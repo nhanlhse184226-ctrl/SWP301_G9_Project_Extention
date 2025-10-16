@@ -71,6 +71,31 @@ public class TransactionController {
         }
     }
 
+    // API để lấy danh sách transaction theo stationID
+    @GetMapping("/transaction/getByStation")
+    @Operation(summary = "Get transactions by station ID", description = "Retrieve all transactions for a specific station, ordered by creation date (newest first).")
+    public ResponseEntity<ApiResponse<Object>> getTransactionsByStation(
+            @Parameter(description = "Station ID to get transactions for", required = true) @RequestParam int stationID) {
+        try {
+            // Validation
+            if (stationID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Station ID must be greater than 0"));
+            }
+
+            List<TransactionDTO> listTransaction = transactionDAO.getTransactionsByStation(stationID);
+
+            if (listTransaction != null && !listTransaction.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success("Get transactions for station successfully", listTransaction));
+            } else {
+                return ResponseEntity.ok(ApiResponse.success("No transactions found for station ID: " + stationID, listTransaction));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error at TransactionController getTransactionsByStation: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
+    }
+
     // API để lấy transaction theo ID
     @GetMapping("/transaction/getById")
     @Operation(summary = "Get transaction by ID", description = "Retrieve a specific transaction by its transaction ID.")
@@ -112,9 +137,7 @@ public class TransactionController {
             if (userID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("User ID must be greater than 0"));
             }
-            if (amount <= 0) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Amount must be greater than 0"));
-            }
+            
             if (stationID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Station ID must be greater than 0"));
             }
@@ -158,8 +181,8 @@ public class TransactionController {
             if (transactionID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Transaction ID must be greater than 0"));
             }
-            if (status < 0 || status > 2) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Status must be 0 (pending), 1 (completed), or 2 (failed)"));
+            if (status < 0 || status > 3) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Status must be 0 (pending), 1 (completed), 2 (expired), or 3 (canceled)"));
             }
 
             boolean success = transactionDAO.updateTransactionStatus(transactionID, status);
