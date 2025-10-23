@@ -111,25 +111,34 @@ public class VNPayPaymentDAO {
     }
 
     /**
-     * Lấy lịch sử giao dịch theo userID
+     * Lấy lịch sử giao dịch theo userID - FIX: Copy format từ getPaymentHistory
      * @param userID ID của user
-     * @return List<VNPayPaymentDTO> chứa thông tin createdAt, bankCode, status
+     * @return List<VNPayPaymentDTO> chứa đầy đủ thông tin payment
      */
-    public List<VNPayPaymentDTO> getPinChangeHistory(Integer userID) throws SQLException {
+    public List<VNPayPaymentDTO> getServicePackPaymentHistory(Integer userID) throws SQLException {
         List<VNPayPaymentDTO> history = new ArrayList<>();
-        String sql = "SELECT createdAt, vnp_BankCode, status " +
+        String sql = "SELECT paymentID, packID, vnp_Amount, updatedAt, total, userID, status, createdAt, vnp_BankCode " +
                      "FROM dbo.VNPayPaymentDTO WHERE userID = ? ORDER BY createdAt DESC";
 
         try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
             ptm.setInt(1, userID);
             try (ResultSet rs = ptm.executeQuery()) {
                 while (rs.next()) {
-                    String createdAt = rs.getString("createdAt");
-                    String bankCode = rs.getString("vnp_BankCode");
-                    int status = rs.getInt("status");
+                    Integer packID = rs.getInt("packID");
+                    Integer paymentID = rs.getInt("paymentID");
+                    Long amount = rs.getLong("vnp_Amount");
+                    String updatedAt = rs.getString("updatedAt");
+                    Integer total = rs.getInt("total");
+                    Integer userId = rs.getInt("userID");
+                    Integer status = rs.getInt("status");
                     
-                    // Sử dụng constructor mới cho transaction history (không có stationID/pinID)
-                    VNPayPaymentDTO dto = new VNPayPaymentDTO(createdAt, bankCode, status);
+                    // Sử dụng constructor đầy đủ thông tin
+                    VNPayPaymentDTO dto = new VNPayPaymentDTO(packID, paymentID, amount, updatedAt, total, userId, status);
+                    
+                    // Set thêm các field khác từ resultset
+                    dto.setCreatedAt(rs.getString("createdAt"));
+                    dto.setVnp_BankCode(rs.getString("vnp_BankCode"));
+                    
                     history.add(dto);
                 }
             }
@@ -141,31 +150,29 @@ public class VNPayPaymentDAO {
     }
 
     /**
-     * Lấy lịch sử thanh toán theo userID
+     * Lấy lịch sử thanh toán theo userID - Copy format từ getStatistic
      * @param userID ID của user
-     * @return List<VNPayPaymentDTO> chứa thông tin packID, txnRef, orderInfo, amount, bankCode, status, createdAt
+     * @return List<VNPayPaymentDTO> chứa thông tin paymentID, userID, packID, total, vnp_Amount, status, updatedAt
      */
     public List<VNPayPaymentDTO> getPaymentHistory(Integer userID) throws SQLException {
         List<VNPayPaymentDTO> history = new ArrayList<>();
-        String sql = "SELECT PackID, vnp_TxnRef, vnp_OrderInfo, vnp_Amount, vnp_BankCode, status, createdAt " +
+        String sql = "SELECT paymentID, packID, vnp_Amount, updatedAt, total, userID, status " +
                      "FROM dbo.VNPayPaymentDTO WHERE userID = ? ORDER BY createdAt DESC";
 
         try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
             ptm.setInt(1, userID);
             try (ResultSet rs = ptm.executeQuery()) {
                 while (rs.next()) {
-                    Integer packID = rs.getInt("PackID");
-                    if (rs.wasNull()) packID = null;
+                    Integer packID = rs.getInt("packID");
+                    Integer paymentID = rs.getInt("paymentID");
+                    Long amount = rs.getLong("vnp_Amount");
+                    String updatedAt = rs.getString("updatedAt");
+                    Integer total = rs.getInt("total");
+                    Integer userId = rs.getInt("userID");
+                    Integer status = rs.getInt("status");
                     
-                    String txnRef = rs.getString("vnp_TxnRef");
-                    String orderInfo = rs.getString("vnp_OrderInfo");
-                    long amount = rs.getLong("vnp_Amount");
-                    String bankCode = rs.getString("vnp_BankCode");
-                    int status = rs.getInt("status");
-                    String createdAt = rs.getString("createdAt");
-                    
-                    // Sử dụng constructor cho payment history
-                    VNPayPaymentDTO dto = new VNPayPaymentDTO(packID, txnRef, orderInfo, amount, bankCode, status, createdAt);
+                    // Sử dụng constructor giống getStatistic + thêm status
+                    VNPayPaymentDTO dto = new VNPayPaymentDTO(packID, paymentID, amount, updatedAt, total, userId, status);
                     history.add(dto);
                 }
             }
@@ -195,5 +202,32 @@ public class VNPayPaymentDAO {
         }
         
         return 0;
+    }
+
+    public List<VNPayPaymentDTO> getStatistic() throws SQLException {
+        List<VNPayPaymentDTO> history = new ArrayList<>();
+        String sql = "SELECT paymentID, packID, vnp_Amount, updatedAt, total, userID " +
+                     "FROM dbo.VNPayPaymentDTO where status = 1 ORDER BY createdAt DESC";
+
+        try (Connection conn = DBUtils.getConnection(); PreparedStatement ptm = conn.prepareStatement(sql)) {
+            try (ResultSet rs = ptm.executeQuery()) {
+                while (rs.next()) {
+                    Integer packID = rs.getInt("packID");
+                    Integer paymentID = rs.getInt("paymentID");
+                    Long amount = rs.getLong("vnp_Amount");
+                    String updatedAt = rs.getString("updatedAt");
+                    Integer total = rs.getInt("total");
+                    Integer userID = rs.getInt("userID");
+                    
+                    // Sử dụng constructor cho payment history
+                    VNPayPaymentDTO dto = new VNPayPaymentDTO(packID, paymentID, amount, updatedAt, total, userID);
+                    history.add(dto);
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("DB driver not found: " + e.getMessage());
+        }
+        
+        return history;
     }
 }

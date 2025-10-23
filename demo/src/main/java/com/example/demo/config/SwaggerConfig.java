@@ -35,7 +35,7 @@ public class SwaggerConfig {
                                 .url("http://localhost:" + serverPort)
                                 .description("Local Development Server"),
                         new Server()
-                                .url(VNPayConfig.BASE_URL)
+                                .url(VNPayConfig.ngrokUrl)
                                 .description("Local Server"),
                         new Server()
                                 .url("https://swp301-g9-project.onrender.com")

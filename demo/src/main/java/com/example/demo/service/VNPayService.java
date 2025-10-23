@@ -109,8 +109,8 @@ public class VNPayService {
         // Generate unique transaction reference
         String vnp_TxnRef = generateTxnRef();
         
-        // Convert amount to VNPay format (VND * 100)
-        Long vnp_Amount = Math.round(amountVND * 100);
+        // Amount để lưu DB (giữ nguyên VND, không nhân 100)
+        Long vnp_Amount = Math.round(amountVND);
         
         // Save to database using DAO (without deprecated stationID/pinID)
         try {
@@ -165,8 +165,8 @@ public class VNPayService {
         vnp_Params.put("vnp_Command", VNPayConfig.VNP_COMMAND);
         vnp_Params.put("vnp_TmnCode", VNPayConfig.VNP_TMN_CODE);
         
-        // Amount: Nhân với 100 để triệt tiêu phần thập phân (VNPay requirement)
-        int amount = (int) (amountVND * 100);
+        // Amount: VNPay yêu cầu nhân 100 theo spec chính thức (bắt buộc!)
+        int amount = (int) Math.round(amountVND * 100);
         vnp_Params.put("vnp_Amount", String.valueOf(amount));
         
         vnp_Params.put("vnp_CurrCode", VNPayConfig.VNP_CURRENCY_CODE);

@@ -52,12 +52,12 @@ public class VNPayPaymentResponseDTO {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     
-    // Helper methods
+    // vnp_Amount là Long lưu VND nguyên
     public Double getAmountVND() {
-        return amount != null ? amount / 100.0 : 0.0;
+        return amount != null ? amount.doubleValue() : 0.0;
     }
-    
+
     public void setAmountVND(Double amountVND) {
-        this.amount = amountVND != null ? Math.round(amountVND * 100) : 0L;
+        this.amount = amountVND != null ? Math.round(amountVND) : 0L;
     }
 }
