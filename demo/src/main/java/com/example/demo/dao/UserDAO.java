@@ -421,4 +421,56 @@ public class UserDAO {
         }
         return check;
     }
+
+    // Method để lấy user theo vehicleID
+    public UserDTO getUserByVehicleID(int vehicleID) throws SQLException {
+        UserDTO user = null;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        
+        String sql = "SELECT u.userID, u.Name, u.Email, u.phone, u.roleID, u.status " +
+                    "FROM users u " +
+                    "INNER JOIN Vehicle v ON u.userID = v.userID " +
+                    "WHERE v.vehicleID = ? AND u.status = 1";
+        
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, vehicleID);
+                rs = ptm.executeQuery();
+                
+                if (rs.next()) {
+                    int userID = rs.getInt("userID");
+                    String name = rs.getString("Name");
+                    String email = rs.getString("Email");
+                    long phone = rs.getLong("phone");
+                    int roleID = rs.getInt("roleID");
+                    int status = rs.getInt("status");
+                    
+                    user = new UserDTO(userID, name, email, "***", phone, roleID, status);
+                }
+                
+                System.out.println("getUserByVehicleID: " + (user != null ? "Found user ID " + user.getUserID() : "No user found") + " for vehicle ID " + vehicleID);
+            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("getUserByVehicleID error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("getUserByVehicleID error: " + e.getMessage());
+            throw new SQLException("Error getting user by vehicle ID: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return user;
+    }
 }

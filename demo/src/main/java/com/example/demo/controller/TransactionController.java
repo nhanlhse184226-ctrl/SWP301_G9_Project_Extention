@@ -8,9 +8,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.example.demo.dao.TransactionDAO;
 import com.example.demo.dto.ApiResponse;
@@ -48,7 +48,7 @@ public class TransactionController {
 
     // API để lấy danh sách transaction theo userID
     @GetMapping("/transaction/getByUser")
-    @Operation(summary = "Get transactions by user ID", description = "Retrieve all transactions for a specific user, ordered by creation date (newest first).")
+    @Operation(summary = "Get transactions by user ID", description = "Retrieve all transactions for a specific user through their vehicles, ordered by creation date (newest first).")
     public ResponseEntity<ApiResponse<Object>> getTransactionsByUser(
             @Parameter(description = "User ID to get transactions for", required = true) @RequestParam int userID) {
         try {
@@ -67,6 +67,31 @@ public class TransactionController {
 
         } catch (SQLException e) {
             System.out.println("Error at TransactionController getTransactionsByUser: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
+    }
+
+    // API để lấy danh sách transaction theo vehicleID
+    @GetMapping("/transaction/getByVehicle")
+    @Operation(summary = "Get transactions by vehicle ID", description = "Retrieve all transactions for a specific vehicle, ordered by creation date (newest first).")
+    public ResponseEntity<ApiResponse<Object>> getTransactionsByVehicle(
+            @Parameter(description = "Vehicle ID to get transactions for", required = true) @RequestParam int vehicleID) {
+        try {
+            // Validation
+            if (vehicleID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Vehicle ID must be greater than 0"));
+            }
+
+            List<TransactionDTO> listTransaction = transactionDAO.getTransactionsByVehicle(vehicleID);
+
+            if (listTransaction != null && !listTransaction.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success("Get transactions for vehicle successfully", listTransaction));
+            } else {
+                return ResponseEntity.ok(ApiResponse.success("No transactions found for vehicle ID: " + vehicleID, listTransaction));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error at TransactionController getTransactionsByVehicle: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
         }
     }
@@ -123,9 +148,9 @@ public class TransactionController {
 
     // API để tạo transaction mới
     @PostMapping("/transaction/create")
-    @Operation(summary = "Create new transaction", description = "Create a new payment transaction with validation: User must be driver (role=1), PinSlot must belong to the specified Station. Auto-generates timestamp and 1-hour expiration.")
+    @Operation(summary = "Create new transaction", description = "Create a new payment transaction with validation: Vehicle must belong to active driver, PinSlot must belong to the specified Station. Auto-generates timestamp and 1-hour expiration.")
     public ResponseEntity<ApiResponse<Object>> createTransaction(
-            @Parameter(description = "Driver ID (must have role=1 and be active)", required = true) @RequestParam int userID,
+            @Parameter(description = "Vehicle ID (must belong to active driver with role=1)", required = true) @RequestParam int vehicleID,
             @Parameter(description = "Transaction amount", required = true) @RequestParam int amount,
             @Parameter(description = "Package ID", required = true) @RequestParam int pack,
             @Parameter(description = "Station ID (must match the station of the pinSlot)", required = true) @RequestParam int stationID,
@@ -134,8 +159,8 @@ public class TransactionController {
 
         try {
             // Validation
-            if (userID <= 0) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("User ID must be greater than 0"));
+            if (vehicleID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Vehicle ID must be greater than 0"));
             }
             
             if (stationID <= 0) {
@@ -148,11 +173,11 @@ public class TransactionController {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Status must be 0 (pending), 1 (completed), or 2 (failed)"));
             }
 
-            boolean success = transactionDAO.createTransaction(userID, amount, pack, stationID, pinID, status);
+            boolean success = transactionDAO.createTransactionWithVehicle(vehicleID, amount, pack, stationID, pinID, status);
 
             if (success) {
                 return ResponseEntity.ok(ApiResponse.success("Transaction created successfully", 
-                    "UserID: " + userID + ", Amount: " + amount + ", Pack: " + pack + 
+                    "VehicleID: " + vehicleID + ", Amount: " + amount + ", Pack: " + pack + 
                     ", StationID: " + stationID + ", PinID: " + pinID + ", Status: " + status));
             } else {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Failed to create transaction"));

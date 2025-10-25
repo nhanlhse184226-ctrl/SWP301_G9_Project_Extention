@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.dao.PinSlotDAO;
+import com.example.demo.dao.UserDAO;
 import com.example.demo.dao.VehicleDAO;
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.UserDTO;
 import com.example.demo.dto.VehicleDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +28,7 @@ public class VehicleController {
 
     private VehicleDAO vehicleDAO = new VehicleDAO();
     private PinSlotDAO pinSlotDAO = new PinSlotDAO();
+    private UserDAO userDAO = new UserDAO();
 
     @GetMapping("/vehicle/list")
     @Operation(summary = "Get all vehicles", description = "Retrieve list of all vehicles in the system")
@@ -122,6 +125,32 @@ public class VehicleController {
             }
         } catch (Exception e) {
             System.out.println("Unexpected error in swapVehiclePinSlotData: " + e.getMessage());
+            return ResponseEntity.status(500).body(ApiResponse.error("Unexpected error occurred"));
+        }
+    }
+
+    @GetMapping("/vehicle/getOwner")
+    @Operation(summary = "Get vehicle owner", description = "Retrieve the user (owner) information for a specific vehicle")
+    public ResponseEntity<ApiResponse<UserDTO>> getVehicleOwner(
+            @Parameter(description = "Vehicle ID to get owner for", required = true) @RequestParam int vehicleID) {
+        try {
+            // Validation
+            if (vehicleID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Vehicle ID must be greater than 0"));
+            }
+
+            UserDTO user = userDAO.getUserByVehicleID(vehicleID);
+            
+            if (user != null) {
+                return ResponseEntity.ok(ApiResponse.success("Vehicle owner retrieved successfully", user));
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (SQLException e) {
+            System.out.println("Database error in getVehicleOwner: " + e.getMessage());
+            return ResponseEntity.status(500).body(ApiResponse.error("Database error: " + e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("Unexpected error in getVehicleOwner: " + e.getMessage());
             return ResponseEntity.status(500).body(ApiResponse.error("Unexpected error occurred"));
         }
     }

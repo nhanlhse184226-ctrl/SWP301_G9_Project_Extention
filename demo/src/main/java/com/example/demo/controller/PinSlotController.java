@@ -91,6 +91,33 @@ public class PinSlotController {
         }
     }
 
+    // API để lấy danh sách PinSlot theo vehicleID
+    @GetMapping("/pinSlot/getByVehicle")
+    @Operation(summary = "Get charging slots by vehicle", description = "Retrieve all charging slots reserved by a specific vehicle.")
+    public ResponseEntity<ApiResponse<Object>> getListPinSlotByVehicle(
+            @Parameter(description = "Vehicle ID to get slots for", required = true) @RequestParam int vehicleID) {
+        try {
+            // Validation
+            if (vehicleID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Vehicle ID must be greater than 0"));
+            }
+
+            List<PinSlotDTO> listPinSlot = pinSlotDAO.getListPinSlotByVehicle(vehicleID);
+
+            if (listPinSlot != null && !listPinSlot.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse
+                        .success("Get PinSlot list for vehicle " + vehicleID + " successfully", listPinSlot));
+            } else {
+                return ResponseEntity
+                        .ok(ApiResponse.success("No PinSlots found for vehicle " + vehicleID, listPinSlot));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error at PinSlotController getListPinSlotByVehicle: " + e.toString());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("System error occurred"));
+        }
+    }
+
     // API để lấy tất cả PinSlot (không filter theo station)
     @GetMapping("/pinSlot/listAll")
     @Operation(summary = "Get all charging slots", description = "Retrieve all charging slots from all stations (Admin view).")
@@ -160,12 +187,12 @@ public class PinSlotController {
     }
 
     @PutMapping("/pinSlot/reserve")
-    @Operation(summary = "Reserve a pin slot", description = "Reserve a specific pin slot if it's status is 1 (valiable) and pinSlotStatus is 1 (available).")
+    @Operation(summary = "Reserve a pin slot", description = "Reserve a specific pin slot if it's status is 1 (available) and pinSlotStatus is 1 (available).")
     public ResponseEntity<ApiResponse<Object>> reservePinSlot(
             @Parameter(description = "Pin slot ID to reserve", required = true) @RequestParam int pinID,
-            @Parameter(description = "User ID reserving the slot", required = false) @RequestParam(required = false) Integer userID) {
+            @Parameter(description = "Vehicle ID reserving the slot", required = false) @RequestParam(required = false) Integer vehicleID) {
         try {
-            boolean success = pinSlotDAO.reservePinSlot(pinID, userID);
+            boolean success = pinSlotDAO.reservePinSlot(pinID, vehicleID);
             if (success) {
                 return ResponseEntity.ok(ApiResponse.success("Pin slot reserved successfully", pinID));
             } else {
