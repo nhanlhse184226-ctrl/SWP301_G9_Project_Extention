@@ -150,6 +150,7 @@ public class TransactionController {
     @PostMapping("/transaction/create")
     @Operation(summary = "Create new transaction", description = "Create a new payment transaction with validation: Vehicle must belong to active driver, PinSlot must belong to the specified Station. Auto-generates timestamp and 1-hour expiration.")
     public ResponseEntity<ApiResponse<Object>> createTransaction(
+            @Parameter(description = "User ID (owner of the vehicle)", required = true) @RequestParam int userID,
             @Parameter(description = "Vehicle ID (must belong to active driver with role=1)", required = true) @RequestParam int vehicleID,
             @Parameter(description = "Transaction amount", required = true) @RequestParam int amount,
             @Parameter(description = "Package ID", required = true) @RequestParam int pack,
@@ -159,6 +160,9 @@ public class TransactionController {
 
         try {
             // Validation
+            if (userID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("User ID must be greater than 0"));
+            }
             if (vehicleID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Vehicle ID must be greater than 0"));
             }
@@ -173,11 +177,11 @@ public class TransactionController {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Status must be 0 (pending), 1 (completed), or 2 (failed)"));
             }
 
-            boolean success = transactionDAO.createTransactionWithVehicle(vehicleID, amount, pack, stationID, pinID, status);
+            boolean success = transactionDAO.createTransactionWithUserAndVehicle(userID, vehicleID, amount, pack, stationID, pinID, status);
 
             if (success) {
-                return ResponseEntity.ok(ApiResponse.success("Transaction created successfully", 
-                    "VehicleID: " + vehicleID + ", Amount: " + amount + ", Pack: " + pack + 
+                return ResponseEntity.ok(ApiResponse.success("Transaction created successfully with userID and vehicleID", 
+                    "UserID: " + userID + ", VehicleID: " + vehicleID + ", Amount: " + amount + ", Pack: " + pack + 
                     ", StationID: " + stationID + ", PinID: " + pinID + ", Status: " + status));
             } else {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Failed to create transaction"));

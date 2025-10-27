@@ -4,7 +4,8 @@ import java.util.Date;
 
 public class TransactionDTO {
     private int transactionID;
-    private int vehicleID;  // Thay đổi từ userID sang vehicleID
+    private int userID;     // Thêm lại userID
+    private int vehicleID;  // Giữ vehicleID
     private int amount;
     private int pack;
     private int stationID;
@@ -17,10 +18,11 @@ public class TransactionDTO {
     public TransactionDTO() {
     }
 
-    // Constructor đầy đủ
-    public TransactionDTO(int transactionID, int vehicleID, int amount, int pack, int stationID, 
+    // Constructor đầy đủ với cả userID và vehicleID
+    public TransactionDTO(int transactionID, int userID, int vehicleID, int amount, int pack, int stationID, 
                          int pinID, int status, Date createAt, Date expireAt) {
         this.transactionID = transactionID;
+        this.userID = userID;
         this.vehicleID = vehicleID;
         this.amount = amount;
         this.pack = pack;
@@ -32,8 +34,9 @@ public class TransactionDTO {
     }
 
     // Constructor để tạo transaction mới (không có transactionID)
-    public TransactionDTO(int vehicleID, int amount, int pack, int stationID, 
+    public TransactionDTO(int userID, int vehicleID, int amount, int pack, int stationID, 
                          int pinID, int status, Date createAt, Date expireAt) {
+        this.userID = userID;
         this.vehicleID = vehicleID;
         this.amount = amount;
         this.pack = pack;
@@ -45,7 +48,8 @@ public class TransactionDTO {
     }
 
     // Constructor cơ bản cho việc tạo transaction
-    public TransactionDTO(int vehicleID, int amount, int pack, int stationID, int pinID) {
+    public TransactionDTO(int userID, int vehicleID, int amount, int pack, int stationID, int pinID) {
+        this.userID = userID;
         this.vehicleID = vehicleID;
         this.amount = amount;
         this.pack = pack;
@@ -62,6 +66,14 @@ public class TransactionDTO {
 
     public void setTransactionID(int transactionID) {
         this.transactionID = transactionID;
+    }
+
+    public int getUserID() {
+        return userID;
+    }
+
+    public void setUserID(int userID) {
+        this.userID = userID;
     }
 
     public int getVehicleID() {
@@ -133,6 +145,7 @@ public class TransactionDTO {
     public String toString() {
         return "TransactionDTO{" +
                 "transactionID=" + transactionID +
+                ", userID=" + userID +
                 ", vehicleID=" + vehicleID +
                 ", amount=" + amount +
                 ", pack=" + pack +

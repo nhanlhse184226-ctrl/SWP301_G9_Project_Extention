@@ -20,7 +20,7 @@ public class TransactionDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT transactionID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt FROM [TestSchedule].[dbo].[Transaction]";
+        String sql = "SELECT transactionID, userID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt FROM [TestSchedule].[dbo].[Transaction]";
 
         try {
             conn = DBUtils.getConnection();
@@ -30,6 +30,7 @@ public class TransactionDAO {
 
                 while (rs.next()) {
                     int transactionID = rs.getInt("transactionID");
+                    int userID = rs.getInt("userID");
                     int vehicleID = rs.getInt("vehicleID");
                     int amount = rs.getInt("amount");
                     int pack = rs.getInt("pack");
@@ -39,8 +40,8 @@ public class TransactionDAO {
                     Date createAt = rs.getTimestamp("createAt");
                     Date expireAt = rs.getTimestamp("expireAt");
 
-                    // Tạo TransactionDTO với constructor đầy đủ
-                    TransactionDTO transaction = new TransactionDTO(transactionID, vehicleID, amount, pack, 
+                    // Tạo TransactionDTO với constructor đầy đủ bao gồm cả userID và vehicleID
+                    TransactionDTO transaction = new TransactionDTO(transactionID, userID, vehicleID, amount, pack, 
                                                                    stationID, pinID, status, createAt, expireAt);
                     listTransaction.add(transaction);
                 }
@@ -72,7 +73,7 @@ public class TransactionDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT transactionID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt " +
+        String sql = "SELECT transactionID, userID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt " +
                     "FROM [TestSchedule].[dbo].[Transaction] WHERE vehicleID = ? ORDER BY createAt DESC";
 
         try {
@@ -84,6 +85,7 @@ public class TransactionDAO {
 
                 while (rs.next()) {
                     int transactionID = rs.getInt("transactionID");
+                    int userID = rs.getInt("userID");
                     int txnVehicleID = rs.getInt("vehicleID");
                     int amount = rs.getInt("amount");
                     int pack = rs.getInt("pack");
@@ -93,8 +95,8 @@ public class TransactionDAO {
                     Date createAt = rs.getTimestamp("createAt");
                     Date expireAt = rs.getTimestamp("expireAt");
 
-                    // Tạo TransactionDTO với constructor đầy đủ
-                    TransactionDTO transaction = new TransactionDTO(transactionID, txnVehicleID, amount, pack, 
+                    // Tạo TransactionDTO với constructor đầy đủ bao gồm userID và vehicleID
+                    TransactionDTO transaction = new TransactionDTO(transactionID, userID, txnVehicleID, amount, pack, 
                                                                    stationID, pinID, status, createAt, expireAt);
                     listTransaction.add(transaction);
                 }
@@ -122,17 +124,16 @@ public class TransactionDAO {
         return listTransaction;
     }
 
-    // Method để lấy danh sách transaction theo userID (thông qua tất cả vehicles của user)
+    // Method để lấy danh sách transaction theo userID
     public List<TransactionDTO> getTransactionsByUser(int userID) throws SQLException {
         List<TransactionDTO> listTransaction = new ArrayList<>();
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT t.transactionID, t.vehicleID, t.amount, t.pack, t.stationID, t.pinID, t.status, t.createAt, t.expireAt " +
-                    "FROM [TestSchedule].[dbo].[Transaction] t " +
-                    "INNER JOIN Vehicle v ON t.vehicleID = v.vehicleID " +
-                    "WHERE v.userID = ? ORDER BY t.createAt DESC";
+        String sql = "SELECT transactionID, userID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt " +
+                    "FROM [TestSchedule].[dbo].[Transaction] " +
+                    "WHERE userID = ? ORDER BY createAt DESC";
 
         try {
             conn = DBUtils.getConnection();
@@ -143,6 +144,7 @@ public class TransactionDAO {
 
                 while (rs.next()) {
                     int transactionID = rs.getInt("transactionID");
+                    int txnUserID = rs.getInt("userID");
                     int vehicleID = rs.getInt("vehicleID");
                     int amount = rs.getInt("amount");
                     int pack = rs.getInt("pack");
@@ -152,13 +154,13 @@ public class TransactionDAO {
                     Date createAt = rs.getTimestamp("createAt");
                     Date expireAt = rs.getTimestamp("expireAt");
 
-                    // Tạo TransactionDTO với constructor đầy đủ
-                    TransactionDTO transaction = new TransactionDTO(transactionID, vehicleID, amount, pack, 
+                    // Tạo TransactionDTO với constructor đầy đủ bao gồm userID và vehicleID
+                    TransactionDTO transaction = new TransactionDTO(transactionID, txnUserID, vehicleID, amount, pack, 
                                                                    stationID, pinID, status, createAt, expireAt);
                     listTransaction.add(transaction);
                 }
 
-                System.out.println("getTransactionsByUser: Retrieved " + listTransaction.size() + " transactions for user " + userID + " (through vehicles)");
+                System.out.println("getTransactionsByUser: Retrieved " + listTransaction.size() + " transactions for user " + userID);
             }
         } catch (ClassNotFoundException e) {
             System.err.println("getTransactionsByUser error: Database driver not found - " + e.getMessage());
@@ -283,12 +285,18 @@ public class TransactionDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        // SQL với vehicleID thay vì userID
-        String sql = "INSERT INTO [TestSchedule].[dbo].[Transaction] (vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, GETDATE(), DATEADD(HOUR, 1, GETDATE()))";
+        // Lấy userID từ vehicleID trước khi tạo transaction
+        int userID = getUserIDFromVehicle(vehicleID);
+        if (userID <= 0) {
+            throw new SQLException("Cannot find userID for vehicleID: " + vehicleID);
+        }
+
+        // SQL với cả userID và vehicleID
+        String sql = "INSERT INTO [TestSchedule].[dbo].[Transaction] (userID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE(), DATEADD(HOUR, 1, GETDATE()))";
 
         System.out.println("Executing SQL: " + sql);
-        System.out.println("Parameters: vehicleID=" + vehicleID + ", amount=" + amount + ", pack=" + pack + 
+        System.out.println("Parameters: userID=" + userID + ", vehicleID=" + vehicleID + ", amount=" + amount + ", pack=" + pack + 
                           ", stationID=" + stationID + ", pinID=" + pinID + ", status=" + status);
 
         try {
@@ -297,17 +305,18 @@ public class TransactionDAO {
                 ptm = conn.prepareStatement(sql);
                 
                 // Set parameters
-                ptm.setInt(1, vehicleID);
-                ptm.setInt(2, amount);
-                ptm.setInt(3, pack);
-                ptm.setInt(4, stationID);
-                ptm.setInt(5, pinID);
-                ptm.setInt(6, status);
+                ptm.setInt(1, userID);
+                ptm.setInt(2, vehicleID);
+                ptm.setInt(3, amount);
+                ptm.setInt(4, pack);
+                ptm.setInt(5, stationID);
+                ptm.setInt(6, pinID);
+                ptm.setInt(7, status);
 
                 int rowsAffected = ptm.executeUpdate();
                 success = (rowsAffected > 0);
 
-                System.out.println("Transaction creation - VehicleID: " + vehicleID + ", Amount: " + amount + 
+                System.out.println("Transaction creation - UserID: " + userID + ", VehicleID: " + vehicleID + ", Amount: " + amount + 
                                  ", Pack: " + pack + ", StationID: " + stationID + ", PinID: " + pinID + 
                                  ", Status: " + status + ", Rows affected: " + rowsAffected);
             }
@@ -540,7 +549,7 @@ public class TransactionDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT transactionID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt " +
+        String sql = "SELECT transactionID, userID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt " +
                     "FROM [TestSchedule].[dbo].[Transaction] WHERE stationID = ? ORDER BY createAt DESC";
 
         try {
@@ -552,6 +561,7 @@ public class TransactionDAO {
 
                 while (rs.next()) {
                     int transactionID = rs.getInt("transactionID");
+                    int userID = rs.getInt("userID");
                     int vehicleID = rs.getInt("vehicleID");
                     int amount = rs.getInt("amount");
                     int pack = rs.getInt("pack");
@@ -561,8 +571,8 @@ public class TransactionDAO {
                     Date createAt = rs.getTimestamp("createAt");
                     Date expireAt = rs.getTimestamp("expireAt");
 
-                    // Tạo TransactionDTO với constructor đầy đủ
-                    TransactionDTO transaction = new TransactionDTO(transactionID, vehicleID, amount, pack, 
+                    // Tạo TransactionDTO với constructor đầy đủ bao gồm userID và vehicleID
+                    TransactionDTO transaction = new TransactionDTO(transactionID, userID, vehicleID, amount, pack, 
                                                                    txnStationID, pinID, status, createAt, expireAt);
                     listTransaction.add(transaction);
                 }
@@ -621,6 +631,173 @@ public class TransactionDAO {
         }
 
         return success;
+    }
+
+    // Helper method để lấy userID từ vehicleID
+    private int getUserIDFromVehicle(int vehicleID) throws SQLException {
+        int userID = 0;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT userID FROM Vehicle WHERE vehicleID = ?";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, vehicleID);
+                rs = ptm.executeQuery();
+
+                if (rs.next()) {
+                    userID = rs.getInt("userID");
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("getUserIDFromVehicle error: Database driver not found - " + e.getMessage());
+            throw new SQLException("Database driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.err.println("getUserIDFromVehicle error: " + e.getMessage());
+            throw new SQLException("Error getting userID from vehicle: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return userID;
+    }
+
+    // Method để tạo transaction mới với cả userID và vehicleID
+    public boolean createTransactionWithUserAndVehicle(int userID, int vehicleID, int amount, int pack, int stationID, int pinID, int status) throws SQLException {
+        // Validate input parameters
+        if (userID <= 0) {
+            throw new SQLException("UserID must be greater than 0");
+        }
+        if (vehicleID <= 0) {
+            throw new SQLException("VehicleID must be greater than 0");
+        }
+        if (stationID <= 0) {
+            throw new SQLException("StationID must be greater than 0");
+        }
+        if (pinID <= 0) {
+            throw new SQLException("PinID must be greater than 0");
+        }
+        if (status < 0 || status > 2) {
+            throw new SQLException("Status must be 0 (pending), 1 (completed), or 2 (failed)");
+        }
+
+        // Validate business rules: kiểm tra vehicle tồn tại và thuộc về user
+        if (!isVehicleBelongsToUser(vehicleID, userID)) {
+            throw new SQLException("Vehicle " + vehicleID + " does not belong to user " + userID);
+        }
+
+        if (!isPinSlotInStation(pinID, stationID)) {
+            throw new SQLException("PinSlot " + pinID + " does not belong to Station " + stationID + " or pinSlot does not exist");
+        }
+
+        System.out.println("All validations passed for transaction creation with userID and vehicleID");
+
+        boolean success = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+
+        // SQL với cả userID và vehicleID
+        String sql = "INSERT INTO [TestSchedule].[dbo].[Transaction] (userID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE(), DATEADD(HOUR, 1, GETDATE()))";
+
+        System.out.println("Executing SQL: " + sql);
+        System.out.println("Parameters: userID=" + userID + ", vehicleID=" + vehicleID + ", amount=" + amount + ", pack=" + pack + 
+                          ", stationID=" + stationID + ", pinID=" + pinID + ", status=" + status);
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                
+                // Set parameters
+                ptm.setInt(1, userID);
+                ptm.setInt(2, vehicleID);
+                ptm.setInt(3, amount);
+                ptm.setInt(4, pack);
+                ptm.setInt(5, stationID);
+                ptm.setInt(6, pinID);
+                ptm.setInt(7, status);
+
+                int rowsAffected = ptm.executeUpdate();
+                success = (rowsAffected > 0);
+
+                System.out.println("Transaction creation - UserID: " + userID + ", VehicleID: " + vehicleID + ", Amount: " + amount + 
+                                 ", Pack: " + pack + ", StationID: " + stationID + ", PinID: " + pinID + 
+                                 ", Status: " + status + ", Rows affected: " + rowsAffected);
+            }
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in createTransactionWithUserAndVehicle: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in createTransactionWithUserAndVehicle: " + e.getMessage());
+            throw new SQLException("Error creating transaction: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return success;
+    }
+
+    // Helper method để validate vehicle thuộc về user
+    private boolean isVehicleBelongsToUser(int vehicleID, int userID) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        boolean belongs = false;
+
+        String sql = "SELECT userID FROM Vehicle WHERE vehicleID = ?";
+
+        try {
+            conn = DBUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(sql);
+                ptm.setInt(1, vehicleID);
+                rs = ptm.executeQuery();
+
+                if (rs.next()) {
+                    int vehicleOwnerID = rs.getInt("userID");
+                    belongs = (vehicleOwnerID == userID);
+                    
+                    if (!belongs) {
+                        System.out.println("Vehicle " + vehicleID + " belongs to user " + vehicleOwnerID + ", not " + userID);
+                    }
+                } else {
+                    System.out.println("Vehicle " + vehicleID + " does not exist");
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            System.out.println("ClassNotFoundException in isVehicleBelongsToUser: " + e.getMessage());
+            throw new SQLException("Database driver not found");
+        } catch (SQLException e) {
+            System.out.println("SQLException in isVehicleBelongsToUser: " + e.getMessage());
+            throw new SQLException("Error checking vehicle ownership: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return belongs;
     }
 
 }
