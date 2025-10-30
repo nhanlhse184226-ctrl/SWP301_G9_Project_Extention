@@ -187,14 +187,24 @@ public class PinSlotController {
     }
 
     @PutMapping("/pinSlot/reserve")
-    @Operation(summary = "Reserve a pin slot", description = "Reserve a specific pin slot if it's status is 1 (available) and pinSlotStatus is 1 (available).")
+    @Operation(summary = "Reserve a pin slot", description = "Reserve a specific pin slot with userID and vehicleID if it's status is 1 (available) and pinSlotStatus is 1 (available).")
     public ResponseEntity<ApiResponse<Object>> reservePinSlot(
             @Parameter(description = "Pin slot ID to reserve", required = true) @RequestParam int pinID,
-            @Parameter(description = "Vehicle ID reserving the slot", required = false) @RequestParam(required = false) Integer vehicleID) {
+            @Parameter(description = "User ID reserving the slot", required = true) @RequestParam int userID,
+            @Parameter(description = "Vehicle ID reserving the slot", required = true) @RequestParam int vehicleID) {
         try {
-            boolean success = pinSlotDAO.reservePinSlot(pinID, vehicleID);
+            // Validation
+            if (userID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("User ID must be greater than 0"));
+            }
+            if (vehicleID <= 0) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Vehicle ID must be greater than 0"));
+            }
+
+            boolean success = pinSlotDAO.reservePinSlot(pinID, userID, vehicleID);
             if (success) {
-                return ResponseEntity.ok(ApiResponse.success("Pin slot reserved successfully", pinID));
+                return ResponseEntity.ok(ApiResponse.success("Pin slot reserved successfully", 
+                    "PinID: " + pinID + " reserved for UserID: " + userID + ", VehicleID: " + vehicleID));
             } else {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse

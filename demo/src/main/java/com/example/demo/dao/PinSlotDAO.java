@@ -52,7 +52,7 @@ public class PinSlotDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, vehicleID, stationID FROM pinSlot";
+        String sql = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, userID, vehicleID, stationID FROM pinSlot";
 
         try {
             conn = DBUtils.getConnection();
@@ -66,12 +66,13 @@ public class PinSlotDAO {
                     int pinStatus = rs.getInt("pinStatus");
                     int status = rs.getInt("status");
 
-                    // Đọc vehicleID và stationID từ database
+                    // Đọc userID, vehicleID và stationID từ database
+                    Integer userID = rs.getObject("userID", Integer.class);
                     Integer vehicleID = rs.getObject("vehicleID", Integer.class);
                     int stationID = rs.getInt("stationID");
 
-                    // Sử dụng constructor với đầy đủ fields bao gồm pinHealth
-                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, vehicleID, stationID));
+                    // Sử dụng constructor với đầy đủ fields bao gồm userID, vehicleID
+                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, userID, vehicleID, stationID));
                 }
             }
         } catch (ClassNotFoundException e) {
@@ -101,7 +102,7 @@ public class PinSlotDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, vehicleID, stationID FROM dbo.pinSlot WHERE stationID = ?";
+        String sql = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, userID, vehicleID, stationID FROM dbo.pinSlot WHERE stationID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -117,12 +118,13 @@ public class PinSlotDAO {
                     int pinStatus = rs.getInt("pinStatus");
                     int status = rs.getInt("status");
 
-                    // Đọc vehicleID và stationID từ database
+                    // Đọc userID, vehicleID và stationID từ database
+                    Integer userID = rs.getObject("userID", Integer.class);
                     Integer vehicleID = rs.getObject("vehicleID", Integer.class);
                     int stationIDFromDB = rs.getInt("stationID");
 
-                    // Sử dụng constructor với đầy đủ fields bao gồm pinHealth
-                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, vehicleID, stationIDFromDB));
+                    // Sử dụng constructor với đầy đủ fields bao gồm userID, vehicleID
+                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, userID, vehicleID, stationIDFromDB));
                 }
             }
         } catch (ClassNotFoundException e) {
@@ -152,7 +154,7 @@ public class PinSlotDAO {
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
-        String sql = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, vehicleID, stationID FROM dbo.pinSlot WHERE vehicleID = ?";
+        String sql = "SELECT pinID, pinPercent, pinHealth, pinStatus, status, userID, vehicleID, stationID FROM dbo.pinSlot WHERE vehicleID = ?";
 
         try {
             conn = DBUtils.getConnection();
@@ -168,12 +170,13 @@ public class PinSlotDAO {
                     int pinStatus = rs.getInt("pinStatus");
                     int status = rs.getInt("status");
 
-                    // Đọc vehicleID và stationID từ database
+                    // Đọc userID, vehicleID và stationID từ database
+                    Integer userID = rs.getObject("userID", Integer.class);
                     Integer vehID = rs.getObject("vehicleID", Integer.class);
                     int stationID = rs.getInt("stationID");
 
-                    // Sử dụng constructor với đầy đủ fields bao gồm pinHealth
-                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, vehID, stationID));
+                    // Sử dụng constructor với đầy đủ fields bao gồm userID, vehicleID
+                    listPinSlot.add(new PinSlotDTO(pinID, pinPercent, pinHealth, pinStatus, status, userID, vehID, stationID));
                 }
             }
         } catch (ClassNotFoundException e) {
@@ -270,12 +273,12 @@ public class PinSlotDAO {
         return check;
     }
 
-    public boolean reservePinSlot(int pinID, Integer vehicleID) throws SQLException {
+    public boolean reservePinSlot(int pinID, Integer userID, Integer vehicleID) throws SQLException {
         boolean check = false;
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        String reserveSQL = "UPDATE dbo.pinSlot SET status = 2, vehicleID = ? WHERE pinID = ?";
+        String reserveSQL = "UPDATE dbo.pinSlot SET status = 2, userID = ?, vehicleID = ? WHERE pinID = ?";
         String checkStatusSQL = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
 
         try {
@@ -292,9 +295,11 @@ public class PinSlotDAO {
                     if (status == 1 && pinStatus == 1) {
                         ptm.close(); // Đóng PreparedStatement cũ trước khi tái sử dụng
                         ptm = conn.prepareStatement(reserveSQL);
-                        ptm.setInt(1, vehicleID);
-                        ptm.setInt(2, pinID);
+                        ptm.setInt(1, userID);
+                        ptm.setInt(2, vehicleID);
+                        ptm.setInt(3, pinID);
                         check = ptm.executeUpdate() > 0;
+                        System.out.println("Pin slot " + pinID + " reserved for userID: " + userID + ", vehicleID: " + vehicleID);
                     } else {
                         System.out.println("Pin slot cannot be reserved. Current status: " + status + ", Pin status: " + pinStatus);
                     }
@@ -325,7 +330,7 @@ public class PinSlotDAO {
         Connection conn = null;
         PreparedStatement ptm = null;
 
-        String unreserveSQL = "UPDATE dbo.pinSlot SET status = 1, vehicleID = NULL WHERE pinID = ?";
+        String unreserveSQL = "UPDATE dbo.pinSlot SET status = 1, userID = NULL, vehicleID = NULL WHERE pinID = ?";
         String checkStatusSQL = "SELECT status, pinStatus FROM dbo.pinSlot WHERE pinID = ?";
 
         try {
@@ -343,6 +348,7 @@ public class PinSlotDAO {
                         ptm = conn.prepareStatement(unreserveSQL);
                         ptm.setInt(1, pinID);
                         check = ptm.executeUpdate() > 0;
+                        System.out.println("Pin slot " + pinID + " unreserved (cleared userID and vehicleID)");
                     } else {
                         System.out.println("Pin slot cannot be unreserved. Current status: " + status + " (must be 2 to unreserve)");
                     }
