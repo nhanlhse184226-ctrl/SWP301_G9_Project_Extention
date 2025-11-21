@@ -22,13 +22,29 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+/**
+ * Controller quản lý các trạm sạc pin
+ * Cung cấp API để tạo, cập nhật, quản lý trạm sạc và phân công nhân viên
+ */
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Pin Station Management", description = "APIs for managing charging stations and their properties")
 public class PinStationController {
     
+    // Khởi tạo DAO để truy cập database
     private final PinStationDAO pinStationDAO = new PinStationDAO();
     
+    /**
+     * API tạo trạm sạc mới
+     * Tự động tạo 15 pin slots cho mỗi trạm sạc mới
+     * @param stationName - Tên trạm sạc (bắt buộc)
+     * @param location - Địa điểm/địa chỉ trạm sạc (bắt buộc)
+     * @param status - Trạng thái trạm (0=inactive, 1=active, 2=maintenance)
+     * @param x - Tọa độ X của trạm sạc
+     * @param y - Tọa độ Y của trạm sạc
+     * @param userID - ID nhân viên quản lý trạm (tùy chọn)
+     * @return ResponseEntity chứa kết quả tạo trạm
+     */
     // API để tạo PinStation mới (trigger sẽ tự động tạo 15 pin slots)
     @PostMapping("/pinStation/create")
     @Operation(summary = "Create new charging station", description = "Create a new charging station with specified name and location. Automatically creates 15 pin slots for the station.")
@@ -41,24 +57,25 @@ public class PinStationController {
             @Parameter(description = "User ID of station staff", required = false) @RequestParam(required = false) Integer userID) {
         
         try {
-            // Validate input
+            // Kiểm tra tên trạm không được rỗng
             if (stationName == null || stationName.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Station name is required"));
             }
             
+            // Kiểm tra địa điểm không được rỗng
             if (location == null || location.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Location is required"));
             }
             
-            // Validate status
+            // Kiểm tra status hợp lệ (0, 1, 2)
             if (status < 0 || status > 2) {
                 return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Status must be 0 (inactive), 1 (active), or 2 (maintenance)"));
             }
             
-            // Gọi DAO để tạo station mới
+            // Gọi DAO để tạo trạm sạc mới
             boolean success = pinStationDAO.createPinStation(
                 stationName.trim(), 
                 location.trim(), 
@@ -68,6 +85,7 @@ public class PinStationController {
                 userID
             );
             
+            // Kiểm tra kết quả tạo trạm
             if (success) {
                 return ResponseEntity.ok(
                     ApiResponse.success("Pin station created successfully", 
@@ -78,10 +96,12 @@ public class PinStationController {
             }
             
         } catch (SQLException e) {
+            // Xử lý lỗi database
             System.out.println("Database error in createPinStation: " + e.getMessage());
             return ResponseEntity.internalServerError()
                 .body(ApiResponse.error("Database error occurred: " + e.getMessage()));
         } catch (Exception e) {
+            // Xử lý lỗi chung
             System.out.println("Error creating pin station: " + e.getMessage());
             return ResponseEntity.internalServerError()
                 .body(ApiResponse.error("Error creating pin station: " + e.getMessage()));
@@ -264,6 +284,13 @@ public class PinStationController {
                 "Service ready to create and manage pin stations"));
     }
 
+    /**
+     * API phân công nhân viên vào trạm sạc
+     * Gán một nhân viên (roleID=2) quản lý một trạm sạc cụ thể
+     * @param userID - ID nhân viên từ session (bắt buộc, roleID=2)
+     * @param stationID - ID trạm sạc cần gán nhân viên (bắt buộc)
+     * @return ResponseEntity chứa kết quả phân công
+     */
     // API để assign staff vào station
     @PutMapping("/pinStation/assignStaff")
     @Operation(summary = "Assign staff to station", description = "Assign a staff member (roleID=2) to manage a specific charging station. UserID comes from session, stationID is manual input.")
@@ -271,17 +298,20 @@ public class PinStationController {
             @Parameter(description = "User ID from session (must be staff with roleID=2)", required = true) @RequestParam Integer userID,
             @Parameter(description = "Station ID to assign staff to", required = true) @RequestParam int stationID) {
         try {
-            // Validation
+            // Kiểm tra stationID hợp lệ
             if (stationID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Station ID must be greater than 0"));
             }
             
+            // Kiểm tra userID hợp lệ
             if (userID == null || userID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("User ID is required and must be greater than 0"));
             }
 
+            // Gọi DAO để phân công nhân viên vào trạm
             boolean success = pinStationDAO.assignStaffToStation(stationID, userID);
             
+            // Kiểm tra kết quả phân công
             if (success) {
                 String message = "Staff (userID: " + userID + ") successfully assigned to station " + stationID;
                 return ResponseEntity.ok(ApiResponse.success(message, 
@@ -292,10 +322,12 @@ public class PinStationController {
             }
 
         } catch (SQLException e) {
+            // Xử lý lỗi database
             System.out.println("Database error in assignStaffToStation: " + e.getMessage());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Assignment failed: " + e.getMessage()));
         } catch (Exception e) {
+            // Xử lý lỗi chung
             System.out.println("Error assigning staff to station: " + e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("Error assigning staff to station: " + e.getMessage()));

@@ -11,58 +11,102 @@ import java.util.List;
 import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.TransactionDTO;
 
+/**
+ * DAO quản lý giao dịch sạc xe điện (Transaction Management)
+ * Xử lý việc tạo, cập nhật và theo dõi các giao dịch sạc xe tại trạm
+ * 
+ * Database table: Transaction
+ * - transactionID: ID tự động tăng (PK)
+ * - userID: ID của user thực hiện giao dịch (FK)
+ * - vehicleID: ID của xe được sạc (FK)
+ * - amount: Số tiền giao dịch (VND)
+ * - pack: ID gói dịch vụ sử dụng (FK)
+ * - stationID: ID trạm sạc (FK)
+ * - pinID: ID cổng sạc cụ thể (FK)
+ * - status: Trạng thái giao dịch (0=pending, 1=active, 2=completed, 3=cancelled)
+ * - createAt: Thời gian tạo giao dịch
+ * - expireAt: Thời gian hết hạn (cho booking)
+ * 
+ * Business Rules:
+ * - User chỉ được tạo giao dịch khi có đủ balance
+ * - Mỗi pin chỉ được sử dụng bởi 1 giao dịch active tại 1 thời điểm
+ * - Giao dịch expired sẽ được tự động hủy và hoàn tiền
+ * - Admin có thể xem tất cả giao dịch, user chỉ xem giao dịch của mình
+ */
 public class TransactionDAO {
 
+    /**
+     * Lấy danh sách tất cả giao dịch trong hệ thống
+     * Sử dụng bởi admin để xem tổng quan giao dịch
+     * @return List chứa tất cả TransactionDTO
+     * @throws SQLException nếu có lỗi database
+     */
     // Method để lấy tất cả transactions
     public List<TransactionDTO> listTransaction() throws SQLException {
+        // Khởi tạo list chứa kết quả
         List<TransactionDTO> listTransaction = new ArrayList<>();
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
+        // SQL lấy tất cả thông tin giao dịch từ bảng Transaction
         String sql = "SELECT transactionID, userID, vehicleID, amount, pack, stationID, pinID, status, createAt, expireAt FROM [TestSchedule].[dbo].[Transaction]";
 
         try {
+            // Mở kết nối database
             conn = DBUtils.getConnection();
+            
+            // Kiểm tra kết nối thành công
             if (conn != null) {
+                // Chuẩn bị prepared statement
                 ptm = conn.prepareStatement(sql);
+                
+                // Thực thi query
                 rs = ptm.executeQuery();
 
+                // Duyệt qua tất cả kết quả
                 while (rs.next()) {
-                    int transactionID = rs.getInt("transactionID");
-                    int userID = rs.getInt("userID");
-                    int vehicleID = rs.getInt("vehicleID");
-                    int amount = rs.getInt("amount");
-                    int pack = rs.getInt("pack");
-                    int stationID = rs.getInt("stationID");
-                    int pinID = rs.getInt("pinID");
-                    int status = rs.getInt("status");
-                    Date createAt = rs.getTimestamp("createAt");
-                    Date expireAt = rs.getTimestamp("expireAt");
+                    // Lấy từng field từ ResultSet
+                    int transactionID = rs.getInt("transactionID");    // ID giao dịch (PK)
+                    int userID = rs.getInt("userID");                  // ID user thực hiện
+                    int vehicleID = rs.getInt("vehicleID");            // ID xe được sạc
+                    int amount = rs.getInt("amount");                  // Số tiền giao dịch
+                    int pack = rs.getInt("pack");                      // ID gói dịch vụ
+                    int stationID = rs.getInt("stationID");            // ID trạm sạc
+                    int pinID = rs.getInt("pinID");                    // ID cổng sạc
+                    int status = rs.getInt("status");                  // Trạng thái giao dịch
+                    Date createAt = rs.getTimestamp("createAt");       // Thời gian tạo
+                    Date expireAt = rs.getTimestamp("expireAt");       // Thời gian hết hạn
 
                     // Tạo TransactionDTO với constructor đầy đủ bao gồm cả userID và vehicleID
                     TransactionDTO transaction = new TransactionDTO(transactionID, userID, vehicleID, amount, pack, 
                                                                    stationID, pinID, status, createAt, expireAt);
+                    
+                    // Thêm vào list kết quả
                     listTransaction.add(transaction);
                 }
 
+                // Log số lượng giao dịch đã lấy được (cho debugging)
                 System.out.println("Retrieved " + listTransaction.size() + " transactions from database");
             }
         } catch (Exception e) {
+            // Log lỗi và ném SQLException
             System.out.println("Error getting transaction list: " + e.getMessage());
             throw new SQLException("Error getting transaction list: " + e.getMessage());
         } finally {
+            // Đóng tất cả resources
             if (rs != null) {
-                rs.close();
+                rs.close();                    // Đóng ResultSet
             }
             if (ptm != null) {
-                ptm.close();
+                ptm.close();                   // Đóng PreparedStatement
             }
             if (conn != null) {
-                conn.close();
+                conn.close();                  // Đóng Connection
             }
         }
 
+        // Trả về list chứa tất cả giao dịch
         return listTransaction;
     }
 

@@ -10,52 +10,101 @@ import java.util.List;
 import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.UserDTO;
 
+/**
+ * DAO quản lý thông tin người dùng (User Management)
+ * Xử lý việc đăng nhập, đăng ký, cập nhật thông tin user
+ * 
+ * Database table: users
+ * - userID: ID tự động tăng (PK)
+ * - Name: Tên đầy đủ của user
+ * - Email: Email đăng nhập (unique)
+ * - Password: Mật khẩu đã hash
+ * - phone: Số điện thoại (unique)
+ * - roleID: Vai trò (1=customer, 2=staff, 3=admin)
+ * - status: Trạng thái tài khoản (0=inactive, 1=active, 2=banned)
+ * 
+ * Business Rules:
+ * - Email và phone phải là duy nhất
+ * - Chỉ user có status=1 mới được đăng nhập
+ * - Password được hash trước khi lưu database
+ * - Admin (roleID=3) có quyền quản lý tất cả user
+ * - Customer (roleID=1) chỉ được xem/sửa thông tin của mình
+ */
 public class UserDAO {
 
+    /**
+     * Xác thực đăng nhập của user
+     * Kiểm tra email, password và status active (=1)
+     * @param Email Email đăng nhập
+     * @param Password Mật khẩu (đã hash)
+     * @return UserDTO nếu đăng nhập thành công, null nếu thất bại
+     * @throws SQLException nếu có lỗi database
+     */
     public UserDTO checkLogin(String Email, String Password) throws SQLException {
+        // Khởi tạo user null - sẽ được gán nếu login thành công
         UserDTO user = null;
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
         
+        // SQL kiểm tra email, password và status=1 (active)
         String sql = "SELECT * FROM users WHERE Email=? AND Password=? AND status=1";
         
         try {
+            // Mở kết nối database
             conn = DBUtils.getConnection();
+            
+            // Kiểm tra kết nối thành công
             if (conn != null) {
+                // Chuẩn bị prepared statement
                 ptm = conn.prepareStatement(sql);
-                ptm.setString(1, Email);
-                ptm.setString(2, Password);
+                
+                // Gán parameters: email và password
+                ptm.setString(1, Email);        // Email đăng nhập
+                ptm.setString(2, Password);     // Password đã hash
+                
+                // Thực thi query
                 rs = ptm.executeQuery();
+                
+                // Nếu có kết quả, nghĩa là login thành công
                 if (rs.next()) {
-                    int userID = rs.getInt("userID");
-                    String Name = rs.getString("Name");
-                    String userEmail = rs.getString("Email");
-                    long phone = rs.getLong("phone");
-                    int roleID = rs.getInt("roleID");
-                    int status = rs.getInt("status");
+                    // Lấy thông tin user từ database
+                    int userID = rs.getInt("userID");           // ID người dùng
+                    String Name = rs.getString("Name");         // Tên đầy đủ
+                    String userEmail = rs.getString("Email");   // Email xác nhận
+                    long phone = rs.getLong("phone");           // Số điện thoại
+                    int roleID = rs.getInt("roleID");           // Vai trò (1,2,3)
+                    int status = rs.getInt("status");           // Trạng thái (1=active)
+                    
+                    // Tạo UserDTO, ẩn password bằng "***" cho security
                     user = new UserDTO(userID, Name, userEmail, "***", phone, roleID, status);
                 }
                 
+                // Log kết quả đăng nhập để theo dõi
                 System.out.println("checkLogin: Login attempt for email " + Email + " - " + (user != null ? "Success" : "Failed"));
             }
         } catch (ClassNotFoundException e) {
+            // Lỗi không tìm thấy database driver
             System.err.println("checkLogin error: Database driver not found - " + e.getMessage());
             throw new SQLException("Database driver not found: " + e.getMessage());
         } catch (SQLException e) {
+            // Lỗi SQL (connection, query, etc.)
             System.err.println("checkLogin error: " + e.getMessage());
             throw new SQLException("Error during login: " + e.getMessage());
         } finally {
+            // Đóng tất cả resources
             if (rs != null) {
-                rs.close();
+                rs.close();                 // Đóng ResultSet
             }
             if (ptm != null) {
-                ptm.close();
+                ptm.close();                // Đóng PreparedStatement  
             }
             if (conn != null) {
-                conn.close();
+                conn.close();               // Đóng Connection
             }
         }
+        
+        // Trả về UserDTO (null nếu login thất bại)
         return user;
     }
 

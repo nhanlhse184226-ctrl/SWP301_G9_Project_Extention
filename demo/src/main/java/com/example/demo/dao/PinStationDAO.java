@@ -10,38 +10,81 @@ import java.util.List;
 import com.example.demo.dbUnits.DBUtils;
 import com.example.demo.dto.PinStationDTO;
 
+/**
+ * DAO quản lý trạm sạc xe điện (Charging Station Management)
+ * Xử lý việc tạo, cập nhật và lấy thông tin các trạm sạc trong hệ thống
+ * 
+ * Database table: pinStation
+ * - stationID: ID tự động tăng (PK)
+ * - stationName: Tên trạm sạc (unique)
+ * - location: Địa chỉ trạm sạc
+ * - status: Trạng thái (0=maintenance, 1=active, 2=inactive)
+ * - x, y: Tọa độ GPS của trạm
+ * - userID: ID admin quản lý trạm (FK, nullable)
+ * 
+ * Related table: pinSlot (1 station có nhiều pin slots)
+ * - Khi tạo station mới, trigger tự động tạo 15 pin slots
+ * 
+ * Business Rules:
+ * - Tên trạm phải là duy nhất
+ * - Tọa độ GPS phải hợp lệ (-90 ≤ y ≤ 90, -180 ≤ x ≤ 180)
+ * - Admin có thể CRUD tất cả stations
+ * - User chỉ được xem stations có status=1 (active)
+ */
 public class PinStationDAO {
 
+    /**
+     * Kiểm tra tên trạm sạc đã tồn tại chưa
+     * Đảm bảo tên trạm là duy nhất trong hệ thống
+     * @param stationName Tên trạm cần kiểm tra
+     * @return true nếu tên đã tồn tại, false nếu chưa
+     * @throws SQLException nếu có lỗi database
+     */
     // Method để kiểm tra duplicate station name
     public boolean isStationNameExists(String stationName) throws SQLException {
+        // Khởi tạo các đối tượng database connection
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
 
+        // SQL đếm số lượng trạm có tên trùng khớp
         String sql = "SELECT COUNT(*) FROM dbo.pinStation WHERE stationName = ?";
 
         try {
+            // Mở kết nối database
             conn = DBUtils.getConnection();
+            
+            // Kiểm tra kết nối thành công
             if (conn != null) {
+                // Chuẩn bị prepared statement
                 ptm = conn.prepareStatement(sql);
+                
+                // Gán stationName vào parameter
                 ptm.setString(1, stationName);
+                
+                // Thực thi query
                 rs = ptm.executeQuery();
 
+                // Lấy kết quả COUNT(*)
                 if (rs.next()) {
+                    // Nếu COUNT > 0 nghĩa là tên đã tồn tại
                     return rs.getInt(1) > 0;
                 }
             }
         } catch (ClassNotFoundException e) {
+            // Lỗi không tìm thấy database driver
             throw new SQLException("Database driver not found: " + e.getMessage());
         } finally {
+            // Đóng tất cả resources
             if (rs != null)
-                rs.close();
+                rs.close();                     // Đóng ResultSet
             if (ptm != null)
-                ptm.close();
+                ptm.close();                    // Đóng PreparedStatement
             if (conn != null)
-                conn.close();
+                conn.close();                   // Đóng Connection
         }
 
+        // Trả về false nếu không tìm thấy (tên chưa tồn tại)
         return false;
     }
 
@@ -541,10 +584,6 @@ public class PinStationDAO {
 
         // Validate user exists and has correct role if userID is provided
         if (userID != null) {
-            PaymentDAO paymentDAO = new PaymentDAO();
-            if (!paymentDAO.isUserExists(userID)) {
-                throw new SQLException("User with ID " + userID + " does not exist");
-            }
             
             // Check if user has staff role (roleID = 2)
             int userRole = getUserRole(userID);

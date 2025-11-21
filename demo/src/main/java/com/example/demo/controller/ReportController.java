@@ -20,20 +20,34 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
- * Report Controller for handling report-related operations
- * - roleID=1 (User): Can create reports and view their own reports
- * - roleID=3 (Admin): Can view all reports, update any report status
- * - roleID=2 (Staff): No access to reports system
+ * Controller quản lý báo cáo và khiếu nại
+ * Xử lý báo cáo từ user về các vấn đề trạm sạc/slot/pin
+ * 
+ * Phân quyền:
+ * - roleID=1 (User): Tạo report và xem report của mình
+ * - roleID=2 (Staff): Không có quyền truy cập reports
+ * - roleID=3 (Admin): Xem tất cả reports và cập nhật trạng thái
  * 
  * Workflow:
- * 1. User creates report (status=Pending)
- * 2. Admin handles and updates report status (Pending -> InProgress -> Resolved)
+ * 1. User tạo report (status=0-Pending)
+ * 2. Admin xử lý và cập nhật (0-Pending -> 1-InProgress -> 2-Resolved)
  */
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Report Management", description = "APIs for managing user reports and admin handling")
 public class ReportController {
 
+    // Khởi tạo DAO để truy cập database
+    private ReportDAO reportDAO = new ReportDAO();
+
+    /**
+     * API tạo report mới từ user
+     * User báo cáo vấn đề về trạm/slot/pin (chỉ roleID=1)
+     * @param userID - ID user từ session (tự động, user không nhập)
+     * @param type - Loại vấn đề: 1=Station, 2=Slot, 3=Battery, 4=Other
+     * @param description - Mô tả chi tiết vấn đề (không giới hạn ký tự)
+     * @return ResponseEntity chứa kết quả tạo report
+     */
     /**
      * POST /api/report/create - User tạo report
      * userID được gửi tự động từ FE session, user không nhập
@@ -56,30 +70,35 @@ public class ReportController {
                       required = true) 
             @RequestParam String description) {  // User nhập mô tả (không giới hạn ký tự)
         try {
+            // Khởi tạo DAO để truy cập database
             ReportDAO dao = new ReportDAO();
             
-            // Validate userID exists and has correct role (roleID=1)
+            // Kiểm tra userID hợp lệ và có quyền tạo report (roleID=1)
             if (userID <= 0) {
                 return ResponseEntity.badRequest().body(
                     ApiResponse.error("Invalid user ID from session"));
             }
             
-            // Validate type (1-4)
+            // Kiểm tra type trong khoảng 1-4 (Station/Slot/Battery/Other)
             if (type < 1 || type > 4) {
                 return ResponseEntity.badRequest().body(
                     ApiResponse.error("Invalid type. Must be 1=Station, 2=Slot, 3=Battery, 4=Other"));
             }
             
-            // Validate description (không giới hạn ký tự, chỉ check không empty)
+            // Kiểm tra description không được rỗng (không giới hạn ký tự)
             if (description == null || description.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     ApiResponse.error("Description cannot be empty"));
             }
             
-            // Create new report với userID từ session
+            // Tạo đối tượng ReportDTO với userID từ session
+            // Status tự động set = 0 (Pending), created_at = now
             ReportDTO newReport = new ReportDTO(type, description.trim(), userID);
+            
+            // Gọi DAO để lưu report vào database
             boolean result = dao.createReport(newReport);
             
+            // Kiểm tra kết quả tạo report
             if (result) {
                 return ResponseEntity.ok(ApiResponse.success("Report created successfully", null));
             } else {
@@ -87,11 +106,18 @@ public class ReportController {
             }
             
         } catch (Exception e) {
+            // Xử lý lỗi và in ra console để debug
             System.out.println("Error at ReportController - createReport: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }
     }
 
+    /**
+     * API admin xem tất cả reports trong hệ thống
+     * Chỉ admin (roleID=3) được phép truy cập
+     * @param adminID - ID admin từ session (tự động verify quyền)
+     * @return ResponseEntity chứa danh sách tất cả reports
+     */
     /**
      * GET /api/report/all - Admin xem tất cả reports
      * Only admins with roleID=3 can access
@@ -106,26 +132,38 @@ public class ReportController {
             @Parameter(description = "Admin user ID from session", required = true, example = "1")
             @RequestParam int adminID) {
         try {
+            // Khởi tạo DAO để truy cập database
             ReportDAO dao = new ReportDAO();
             
+            // Kiểm tra adminID hợp lệ (phải > 0)
             if (adminID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Invalid admin ID"));
             }
             
+            // Gọi DAO để lấy tất cả reports (verify quyền admin bên trong DAO)
             List<ReportDTO> reports = dao.getAllReports(adminID);
             
+            // Kiểm tra kết quả và trả về response phù hợp
             if (reports != null && !reports.isEmpty()) {
                 return ResponseEntity.ok(ApiResponse.success("Retrieved all reports successfully", reports));
             } else {
+                // Trả về thông báo không có reports (vẫn success)
                 return ResponseEntity.ok(ApiResponse.success("No reports found", reports));
             }
             
         } catch (Exception e) {
+            // Xử lý lỗi và in ra console để debug
             System.out.println("Error at ReportController - getAllReports: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }
     }
 
+    /**
+     * API admin xem các reports đang pending (chưa xử lý)
+     * Chỉ admin (roleID=3) được truy cập - dashboard chính
+     * @param adminID - ID admin từ session (verify quyền tự động)
+     * @return ResponseEntity chứa danh sách reports status=0
+     */
     /**
      * GET /api/report/pending - Admin xem pending reports
      * Only admins with roleID=3 can access
@@ -140,21 +178,28 @@ public class ReportController {
             @Parameter(description = "Admin user ID from session", required = true, example = "1")
             @RequestParam int adminID) {
         try {
+            // Khởi tạo DAO để truy cập database
             ReportDAO dao = new ReportDAO();
             
+            // Kiểm tra adminID hợp lệ
             if (adminID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Invalid admin ID"));
             }
             
+            // Gọi DAO để lấy các reports có status=0 (Pending)
+            // Sắp xếp theo thời gian tạo (cũ nhất trước) để admin ưu tiên xử lý
             List<ReportDTO> pendingReports = dao.getPendingReports(adminID);
             
+            // Kiểm tra kết quả và trả về response
             if (pendingReports != null && !pendingReports.isEmpty()) {
                 return ResponseEntity.ok(ApiResponse.success("Retrieved pending reports successfully", pendingReports));
             } else {
+                // Không có reports pending (tốt - không có vấn đề mới)
                 return ResponseEntity.ok(ApiResponse.success("No pending reports found", pendingReports));
             }
             
         } catch (Exception e) {
+            // Xử lý lỗi và in ra console để debug
             System.out.println("Error at ReportController - getPendingReports: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }
@@ -164,6 +209,14 @@ public class ReportController {
 
 
 
+    /**
+     * API admin cập nhật trạng thái report
+     * Chỉ admin (roleID=3) có quyền cập nhật status
+     * @param reportId - ID của report cần cập nhật
+     * @param status - Trạng thái mới: 0=Pending, 1=InProgress, 2=Resolved
+     * @param adminID - ID admin thực hiện (tự động trở thành handler)
+     * @return ResponseEntity chứa kết quả cập nhật
+     */
     /**
      * PUT /api/report/{reportId}/status - Admin update report status
      * Only admins (roleID=3) can update report status
@@ -183,24 +236,32 @@ public class ReportController {
             @Parameter(description = "Admin user ID from session", required = true, example = "456")
             @RequestParam int adminID) {
         try {
+            // Khởi tạo DAO để truy cập database
             ReportDAO dao = new ReportDAO();
             
+            // Kiểm tra reportId hợp lệ
             if (reportId <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Invalid report ID"));
             }
             
+            // Kiểm tra adminID hợp lệ
             if (adminID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Invalid admin ID"));
             }
             
+            // Kiểm tra status trong khoảng hợp lệ (0-2)
             if (status < 0 || status > 2) {
                 return ResponseEntity.badRequest().body(
                     ApiResponse.error("Invalid status. Must be 0=Pending, 1=InProgress, 2=Resolved"));
             }
             
+            // Gọi DAO để cập nhật status và set adminID làm handler
+            // Khi admin cập nhật status, họ tự động trở thành người phụ trách
             boolean result = dao.updateReportStatus(reportId, status, adminID);
             
+            // Kiểm tra kết quả cập nhật
             if (result) {
+                // Chuyển số status thành tên cho user dễ hiểu
                 String statusName = (status == 0) ? "Pending" : (status == 1) ? "InProgress" : "Resolved";
                 return ResponseEntity.ok(ApiResponse.success("Report status updated to " + statusName + " successfully", null));
             } else {
@@ -208,11 +269,18 @@ public class ReportController {
             }
             
         } catch (Exception e) {
+            // Xử lý lỗi và in ra console để debug
             System.out.println("Error at ReportController - updateReportStatus: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }
     }
 
+    /**
+     * API user xem các reports của chính mình
+     * Chỉ user (roleID=1) được xem reports do mình tạo
+     * @param userID - ID user từ session (tự động)
+     * @return ResponseEntity chứa danh sách reports của user
+     */
     /**
      * GET /api/report/my-reports - User xem reports của mình
      * Only for users with roleID=1
@@ -228,26 +296,40 @@ public class ReportController {
             @Parameter(description = "User ID from session", required = true, example = "123")
             @RequestParam int userID) {
         try {
+            // Khởi tạo DAO để truy cập database
             ReportDAO dao = new ReportDAO();
             
+            // Kiểm tra userID hợp lệ
             if (userID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Invalid user ID"));
             }
             
+            // Gọi DAO để lấy reports của user này
+            // Sắp xếp theo thời gian tạo (mới nhất trước) để user thấy reports gần đây
             List<ReportDTO> myReports = dao.getReportsByReporter(userID);
             
+            // Kiểm tra kết quả và trả về response
             if (myReports != null && !myReports.isEmpty()) {
                 return ResponseEntity.ok(ApiResponse.success("Retrieved your reports successfully", myReports));
             } else {
+                // User chưa tạo report nào (bình thường)
                 return ResponseEntity.ok(ApiResponse.success("You have no reports yet", myReports));
             }
             
         } catch (Exception e) {
+            // Xử lý lỗi và in ra console để debug
             System.out.println("Error at ReportController - getMyReports: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }
     }
 
+    /**
+     * API admin xem reports của một user cụ thể
+     * Chỉ admin (roleID=3) được xem reports của bất kỳ user nào
+     * @param userId - ID của user cần xem reports
+     * @param adminID - ID admin từ session (verify quyền)
+     * @return ResponseEntity chứa danh sách reports của user
+     */
     /**
      * GET /api/report/user/{userId} - Admin xem reports theo user ID
      * Only for admins with roleID=3
@@ -264,21 +346,28 @@ public class ReportController {
             @Parameter(description = "Admin ID from session", required = true, example = "456") 
             @RequestParam int adminID) {
         try {
+            // Khởi tạo DAO để truy cập database
             ReportDAO dao = new ReportDAO();
             
+            // Kiểm tra cả userId và adminID đều hợp lệ
             if (userId <= 0 || adminID <= 0) {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Invalid user ID or admin ID"));
             }
             
+            // Gọi DAO để lấy reports của user được chỉ định
+            // Verify quyền admin và lấy tất cả reports của userId
             List<ReportDTO> userReports = dao.getReportsByUserId(userId, adminID);
             
+            // Kiểm tra kết quả và trả về response
             if (userReports != null && !userReports.isEmpty()) {
                 return ResponseEntity.ok(ApiResponse.success("Retrieved user reports successfully", userReports));
             } else {
+                // User chưa tạo report nào hoặc không tồn tại
                 return ResponseEntity.ok(ApiResponse.success("User has no reports", userReports));
             }
             
         } catch (Exception e) {
+            // Xử lý lỗi và in ra console để debug
             System.out.println("Error at ReportController - getReportsByUserId: " + e.toString());
             return ResponseEntity.internalServerError().body(ApiResponse.error("System error: " + e.getMessage()));
         }

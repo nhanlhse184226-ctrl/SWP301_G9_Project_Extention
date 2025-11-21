@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.demo.dao.PaymentDAO;
 import com.example.demo.dao.VNPayPaymentDAO;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.VNPayPaymentDTO;
@@ -42,8 +41,6 @@ public class VNPayController {
     @Autowired
     private VNPayService vnpayService;
 
-    private final PaymentDAO paymentDAO = new PaymentDAO();
-
     /**
      * Tạo VNPay payment với QR code - API mới cho frontend
      */
@@ -59,9 +56,7 @@ public class VNPayController {
 
         try {
             // Validate userID exists in database
-            if (!paymentDAO.isUserExists(userID)) {
-                return ApiResponse.error("UserID " + userID + " không tồn tại trong hệ thống");
-            }
+        
 
             // Get client IP
             String ipAddress = getClientIpAddress(request);
@@ -76,8 +71,8 @@ public class VNPayController {
 
         } catch (UnsupportedEncodingException e) {
             return ApiResponse.error("Failed to create payment: " + e.getMessage());
-        } catch (SQLException e) {
-            return ApiResponse.error("Database error: " + e.getMessage());
+        // } catch (SQLException e) {
+        //     return ApiResponse.error("Database error: " + e.getMessage());
         } catch (Exception e) {
             return ApiResponse.error("Unexpected error: " + e.getMessage());
         }
@@ -98,9 +93,6 @@ public class VNPayController {
 
         try {
             // Validate userID exists in database
-            if (!paymentDAO.isUserExists(userID)) {
-                return ApiResponse.error("UserID " + userID + " không tồn tại trong hệ thống");
-            }
 
             // NOTE: stationID và pinID không được lưu vào database nữa (legacy parameters
             // for backward compatibility)
@@ -117,8 +109,8 @@ public class VNPayController {
 
         } catch (UnsupportedEncodingException e) {
             return ApiResponse.error("Failed to create payment URL: " + e.getMessage());
-        } catch (SQLException e) {
-            return ApiResponse.error("Database error: " + e.getMessage());
+        // } catch (SQLException e) {
+        //     return ApiResponse.error("Database error: " + e.getMessage());
         } catch (Exception e) {
             return ApiResponse.error("Unexpected error: " + e.getMessage());
         }
